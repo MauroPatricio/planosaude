@@ -116,7 +116,7 @@ const seed = async () => {
         const value = plan.priceMonthly * (1 + Math.random());
         
         const sale = await Sale.create({
-            client: client._id,
+            client: client?._id,
             plan: plan._id,
             broker: admin._id,
             institution: i % 2 === 0 ? inst1._id : inst2._id,
@@ -131,7 +131,7 @@ const seed = async () => {
         // Create random invoices
         await Invoice.create({
             tenant: tenant._id,
-            client: client._id,
+            client: client?._id,
             sale: sale._id,
             invoiceNumber: `INV-24-${1000 + i}`,
             amount: sale.value,

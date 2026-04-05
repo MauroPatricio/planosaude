@@ -13,7 +13,7 @@ if (!MONGO_URI) {
 async function sync() {
   try {
     console.log('Connecting to Atlas (test DB)...');
-    const conn = await mongoose.connect(MONGO_URI, { dbName: 'test' });
+    const conn = await mongoose.connect(MONGO_URI!, { dbName: 'test' });
     console.log('Connected!');
 
     const db = conn.connection.db;

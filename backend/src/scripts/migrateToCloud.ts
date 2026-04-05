@@ -19,7 +19,7 @@ async function migrate() {
     console.log('Connected to Local.');
 
     console.log('Connecting to CLOUD DB (Atlas)...');
-    cloudConn = await mongoose.createConnection(CLOUD_URI, { dbName: 'planosaude' }).asPromise();
+    cloudConn = await mongoose.createConnection(CLOUD_URI!, { dbName: 'planosaude' }).asPromise();
     console.log('Connected to Cloud.');
 
     const collectionNames = [

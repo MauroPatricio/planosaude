@@ -16,7 +16,7 @@ const syncPolicies = async () => {
     let updatedCount = 0;
     for (const sale of sales) {
       const client = await Client.findById(sale.client);
-      if (client && !client.policyNumber) {
+      if (client && !client.policyNumber && sale.policyNumber) {
         client.policyNumber = sale.policyNumber;
         await client.save();
         updatedCount++;

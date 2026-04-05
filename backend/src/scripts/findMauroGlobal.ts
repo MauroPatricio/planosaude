@@ -13,7 +13,7 @@ if (!MONGO_URI) {
 async function findGlobal() {
   try {
     console.log('Connecting to Atlas...');
-    const conn = await mongoose.connect(MONGO_URI);
+    const conn = await mongoose.connect(MONGO_URI!);
     console.log('Connected!');
 
     const admin = conn.connection.db.admin();
