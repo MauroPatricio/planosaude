@@ -62,6 +62,10 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'Welcome to PlanoSaude API' });
 });
 
+app.get('/api', (req, res) => {
+  res.json({ status: 'API is running', version: '1.2.0' });
+});
+
 app.get('/api/health-check', (req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString(), version: '1.1.0' });
 });
