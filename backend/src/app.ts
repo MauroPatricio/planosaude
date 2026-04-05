@@ -37,25 +37,31 @@ app.use(express.json());
 app.use(morgan('dev'));
 app.use('/uploads', express.static('uploads'));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/sales', saleRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/plans', planRoutes);
-app.use('/api/leads', leadRoutes);
-app.use('/api/institutions', institutionRoutes);
-app.use('/api/approvals', approvalRoutes);
-app.use('/api/members', memberRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/commissions', commissionRoutes);
-app.use('/api/claims', claimRoutes);
-app.use('/api/upload', uploadRoutes);
+// Routes (Hybrid: Supports both /api and no-prefix for Nginx flexibility)
+const registerRoutes = (prefix: string) => {
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/clients`, clientRoutes);
+  app.use(`${prefix}/sales`, saleRoutes);
+  app.use(`${prefix}/dashboard`, dashboardRoutes);
+  app.use(`${prefix}/reports`, reportRoutes);
+  app.use(`${prefix}/users`, userRoutes);
+  app.use(`${prefix}/plans`, planRoutes);
+  app.use(`${prefix}/leads`, leadRoutes);
+  app.use(`${prefix}/institutions`, institutionRoutes);
+  app.use(`${prefix}/approvals`, approvalRoutes);
+  app.use(`${prefix}/members`, memberRoutes);
+  app.use(`${prefix}/subscriptions`, subscriptionRoutes);
+  app.use(`${prefix}/documents`, documentRoutes);
+  app.use(`${prefix}/payments`, paymentRoutes);
+  app.use(`${prefix}/notifications`, notificationRoutes);
+  app.use(`${prefix}/commissions`, commissionRoutes);
+  app.use(`${prefix}/claims`, claimRoutes);
+  app.use(`${prefix}/upload`, uploadRoutes);
+};
+
+// Register with /api and without
+registerRoutes('/api');
+registerRoutes('');
 
 // Basic Home Route
 app.get('/', (req: Request, res: Response) => {
