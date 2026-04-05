@@ -15,7 +15,7 @@ const io = initSocket(httpServer);
 const startServer = async () => {
   try {
     connectDB(); // Run in background
-    const port = process.env.PORT || 5000;
+    const port = process.env.PORT || 7000;
     httpServer.listen(port, async () => {
       logger.info(`Server is running on port ${port} with Socket.io`);
       // Automation: Run checks on startup
