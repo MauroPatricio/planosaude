@@ -5,11 +5,12 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'superAdmin' | 'admin' | 'manager' | 'broker';
+  role: 'superAdmin' | 'admin' | 'manager' | 'broker' | 'client' | 'hr_admin';
   tenant: mongoose.Schema.Types.ObjectId;
   isActive: boolean;
   profileImage?: string;
   pushTokens?: string[];
+  clientId?: mongoose.Types.ObjectId;
   comparePassword(password: string): Promise<boolean>;
 }
 
@@ -17,11 +18,12 @@ const UserSchema: Schema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['superAdmin', 'admin', 'manager', 'broker'], default: 'broker' },
+  role: { type: String, enum: ['superAdmin', 'admin', 'manager', 'broker', 'client', 'hr_admin'], default: 'broker' },
   tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
   isActive: { type: Boolean, default: true },
   profileImage: { type: String },
   pushTokens: [{ type: String }],
+  clientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true }
 }, {
   timestamps: true
 });

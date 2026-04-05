@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import { useAuthStore } from '../../src/store/authStore';
 import axios from 'axios';
+import { API_URL } from '../../src/config';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
   <View style={styles.statCard}>
@@ -49,7 +50,7 @@ export default function DashboardScreen() {
 
   const fetchStats = async () => {
     try {
-      const { data } = await axios.get('http://10.0.2.2:5000/api/dashboard/stats', {
+      const { data } = await axios.get(`${API_URL}/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(data);
@@ -165,11 +166,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 30,
-    justifyContent: 'space-between',
   },
   welcomeText: {
     color: '#9CA3AF',

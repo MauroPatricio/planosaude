@@ -1,6 +1,7 @@
 import { type Response } from 'express';
 import ExcelJS from 'exceljs';
 import Sale from '../models/Sale.js';
+import Commission from '../models/Commission.js';
 import logger from '../utils/logger.js';
 
 export const exportSalesReport = async (req: any, res: Response) => {
@@ -38,7 +39,26 @@ export const exportSalesReport = async (req: any, res: Response) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (err: any) {
-    logger.error(`Export Report Error: ${err}`);
     res.status(500).json({ message: 'Erro ao gerar relatório' });
+  }
+};
+
+export const getCommissions = async (req: any, res: Response) => {
+  try {
+    let query: any = { tenant: req.tenantId };
+    
+    // If broker, only show their own commissions.
+    if (req.user.role === 'broker') {
+      query.broker = req.user._id;
+    }
+
+    const commissions = await Commission.find(query)
+      .populate('broker', 'name email')
+      .populate('sale', 'value createdAt')
+      .sort({ createdAt: -1 });
+    res.json(commissions);
+  } catch (err: any) {
+    logger.error(`Get Commissions Error: ${err}`);
+    res.status(500).json({ message: 'Erro ao buscar comissões' });
   }
 };

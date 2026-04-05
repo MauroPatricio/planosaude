@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import axios from 'axios';
+import { API_URL } from '../config';
 
 export async function registerForPushNotificationsAsync() {
   let token;

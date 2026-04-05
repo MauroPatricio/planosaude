@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
 import User from '../models/User.js';
+import { getUsers, createUser, updateUserRole, deleteUser } from '../controllers/userController.js';
+import { authorize } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
@@ -23,5 +25,13 @@ router.post('/push-token', protect, async (req: any, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Equipa / Membros Management
+// Apenas admins podem gerir utilizadores completos (adicionar, remover, alterar role)
+// O protect já assegura que `req.tenantId` está preenchido
+router.get('/', protect, authorize('admin', 'manager'), getUsers);
+router.post('/', protect, authorize('admin', 'manager'), createUser);
+router.put('/:id/role', protect, authorize('admin'), updateUserRole);
+router.delete('/:id', protect, authorize('admin'), deleteUser);
 
 export default router;

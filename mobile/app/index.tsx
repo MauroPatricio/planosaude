@@ -11,18 +11,20 @@ import {
   StatusBar,
   Dimensions
 } from 'react-native';
-import { Shield, Lock, Mail, ChevronRight, AlertCircle, UserPlus } from 'lucide-react-native';
+import { Shield, Lock, Mail, ChevronRight, AlertCircle, UserPlus, Eye, EyeOff } from 'lucide-react-native';
 import { useAuthStore } from '../src/store/authStore';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { registerForPushNotificationsAsync, registerTokenWithBackend } from '../src/services/notificationService';
+import { API_URL } from '../src/config';
 
 const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -39,7 +41,7 @@ export default function LoginScreen() {
 
     try {
       // In a real device, you'd use your local IP instead of localhost
-      const response = await axios.post('http://10.0.2.2:5000/api/auth/login', { 
+      const response = await axios.post(`${API_URL}/auth/login`, { 
         email, 
         password 
       });
@@ -56,7 +58,8 @@ export default function LoginScreen() {
         console.error('Erro ao registar notificações:', pushErr);
       }
 
-      router.replace('/(tabs)/dashboard');
+      const destination = userData.role === 'client' ? '/(tabs)/home' : '/(tabs)/dashboard';
+      router.replace(destination as any);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao realizar login. Verifique sua conexão.');
     } finally {
@@ -91,7 +94,7 @@ export default function LoginScreen() {
           </LinearGradient>
           <Text style={styles.title}>PlanoSaude</Text>
           <Text style={styles.subtitle}>Gestão Inteligente de Corretagem</Text>
-        </div>
+        </View>
 
         {error ? (
           <View style={styles.errorContainer}>
@@ -127,8 +130,18 @@ export default function LoginScreen() {
                 placeholderTextColor="#475569"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color="#64748b" />
+                ) : (
+                  <Eye size={20} color="#64748b" />
+                )}
+              </TouchableOpacity>
             </View>
           </View>
 

@@ -25,14 +25,14 @@ export const registerTenant = async (req: Request, res: Response) => {
     if (userExists) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ message: 'L\'email dell\'amministratore è già in uso' });
+      return res.status(400).json({ message: 'O email do administrador já está em uso' });
     }
 
     const tenantExists = await Tenant.findOne({ contactEmail }).session(session);
     if (tenantExists) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ message: 'L\'email dell\'organizzazione è già in uso' });
+      return res.status(400).json({ message: 'O email da organização já está em uso' });
     }
 
     // 1. Create Tenant
@@ -51,26 +51,26 @@ export const registerTenant = async (req: Request, res: Response) => {
       email: adminEmail,
       password,
       role: 'admin',
-      tenant: tenant[0]._id
+      tenant: tenant[0]!._id
     }], { session });
 
     await session.commitTransaction();
     session.endSession();
 
     res.status(201).json({
-      _id: user[0]._id,
-      name: user[0].name,
-      email: user[0].email,
-      role: user[0].role,
-      tenantId: tenant[0]._id,
-      token: generateToken(user[0]._id.toString(), tenant[0]._id.toString())
+      _id: user[0]!._id,
+      name: user[0]!.name,
+      email: user[0]!.email,
+      role: user[0]!.role,
+      tenantId: tenant[0]!._id,
+      token: generateToken(user[0]!._id.toString(), tenant[0]!._id.toString())
     });
 
   } catch (error: any) {
     await session.abortTransaction();
     session.endSession();
     logger.error(`Register Tenant Error: ${error}`);
-    res.status(500).json({ message: 'Errore durante la creazione dell\'account', error: error.message });
+    res.status(500).json({ message: 'Erro ao criar a conta', error: error.message });
   }
 };
 
@@ -80,7 +80,7 @@ export const registerUser = async (req: any, res: Response) => {
 
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'Utilizador já existe' });
     }
 
     const user = await User.create({
@@ -98,12 +98,13 @@ export const registerUser = async (req: any, res: Response) => {
         email: user.email,
         role: user.role,
         tenantId: user.tenant,
+        clientId: user.clientId,
         token: generateToken(user._id.toString(), user.tenant.toString())
       });
     }
   } catch (error: any) {
     logger.error(`Register User Error: ${error}`);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Erro de servidor', error: error.message });
   }
 };
 
@@ -119,14 +120,15 @@ export const loginUser = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        tenantId: user.tenant,
-        token: generateToken(user._id.toString(), user.tenant.toString())
+        tenantId: user.tenant ? user.tenant.toString() : null,
+        clientId: user.clientId ? user.clientId.toString() : null,
+        token: generateToken(user._id.toString(), user.tenant ? user.tenant.toString() : '')
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: 'Email ou palavra-passe inválidos' });
     }
   } catch (error: any) {
-    logger.error(`Login User Error: ${error}`);
+    logger.error(`Login User Error: ${error.stack || error}`);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -2,7 +2,7 @@ import mongoose, { Schema, type Document } from 'mongoose';
 
 export interface ITenant extends Document {
   name: string;
-  type: 'clinica' | 'corretora' | 'restaurante' | 'other';
+  type: string;
   country: string;
   currency: string;
   contactEmail: string;
@@ -18,8 +18,7 @@ const TenantSchema: Schema = new Schema({
   name: { type: String, required: true },
   type: { 
     type: String, 
-    enum: ['clinica', 'corretora', 'restaurante', 'other'], 
-    default: 'corretora',
+    default: 'Corretora de Seguros',
     required: true 
   },
   country: { type: String, default: 'Moçambique' },

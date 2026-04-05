@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "PlanoSaude360",
+    "slug": "planosaude360",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,6 +29,6 @@
       "bundler": "metro"
     },
     "plugins": ["expo-router"],
-    "scheme": "planosaude-mobile"
+    "scheme": "planosaude360"
   }
 }

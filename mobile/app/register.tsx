@@ -20,6 +20,7 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
+import { API_URL } from '../src/config';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ export default function RegisterScreen() {
     password: '',
     confirmPassword: ''
   });
+  const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -68,7 +70,7 @@ export default function RegisterScreen() {
       // Use 10.0.2.2 for Android Emulator, localhost for iOS
       const baseUrl = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
       await axios.post(`${baseUrl}/api/auth/register-tenant`, formData);
-      router.replace('/');
+      setIsSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar conta. Tente novamente.');
     } finally {
@@ -117,194 +119,231 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { width: step === 1 ? '50%' : '100%' }]} />
-        </View>
-
-        {error ? (
-          <View style={styles.errorContainer}>
-            <AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.form}>
-          {step === 1 ? (
-            <View style={styles.stepContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>NOME DA EMPRESA</Text>
-                <View style={styles.inputWrapper}>
-                  <Building2 size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Nome da organização"
-                    placeholderTextColor="#475569"
-                    value={formData.companyName}
-                    onChangeText={(val) => setFormData({...formData, companyName: val})}
-                  />
-                </View>
+        {isSuccess ? (
+          <View style={styles.successContainer}>
+            <LinearGradient
+              colors={['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.02)']}
+              style={styles.successCard}
+            >
+              <View style={styles.successIconContainer}>
+                <CheckCircle2 size={50} color="#10B981" />
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>TIPO DE NEGÓCIO</Text>
-                <View style={styles.inputWrapper}>
-                  <Briefcase size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ex: Corretora, Clínica"
-                    placeholderTextColor="#475569"
-                    value={formData.companyType}
-                    onChangeText={(val) => setFormData({...formData, companyType: val})}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>EMAIL INSTITUCIONAL</Text>
-                <View style={styles.inputWrapper}>
-                  <Mail size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="geral@empresa.com"
-                    placeholderTextColor="#475569"
-                    value={formData.contactEmail}
-                    onChangeText={(val) => setFormData({...formData, contactEmail: val})}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>CONTACTO TELEFÓNICO</Text>
-                <View style={styles.inputWrapper}>
-                  <Phone size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="+258 ..."
-                    placeholderTextColor="#475569"
-                    value={formData.contactPhone}
-                    onChangeText={(val) => setFormData({...formData, contactPhone: val})}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-
+              <Text style={styles.successTitle}>Conta Criada!</Text>
+              <Text style={styles.successSubtitle}>
+                A sua conta de administrador para a empresa {formData.companyName} foi criada com sucesso.
+              </Text>
+              
               <TouchableOpacity 
                 activeOpacity={0.8}
-                onPress={handleNext}
-                style={styles.submitButton}
+                onPress={() => router.replace('/')}
+                style={styles.successButton}
               >
                 <LinearGradient
-                  colors={['#2563eb', '#1d4ed8']}
-                  style={styles.gradient}
+                  colors={['#10b981', '#059669']}
+                  style={styles.gradientSuccess}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
                   <View style={styles.buttonInner}>
-                    <Text style={styles.buttonText}>Próximo Passo</Text>
+                    <Text style={styles.buttonText}>Fazer Login</Text>
                     <ChevronRight size={20} color="#FFFFFF" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        ) : (
+          <>
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: step === 1 ? '50%' : '100%' }]} />
             </View>
-          ) : (
-            <View style={styles.stepContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>NOME DO ADMINISTRADOR</Text>
-                <View style={styles.inputWrapper}>
-                  <User size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Seu nome completo"
-                    placeholderTextColor="#475569"
-                    value={formData.adminName}
-                    onChangeText={(val) => setFormData({...formData, adminName: val})}
-                  />
-                </View>
-              </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>EMAIL DE ACESSO</Text>
-                <View style={styles.inputWrapper}>
-                  <Mail size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="admin@empresa.com"
-                    placeholderTextColor="#475569"
-                    value={formData.adminEmail}
-                    onChangeText={(val) => setFormData({...formData, adminEmail: val})}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                </View>
+            {error ? (
+              <View style={styles.errorContainer}>
+                <AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
+            ) : null}
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>PALAVRA-PASSE</Text>
-                <View style={styles.inputWrapper}>
-                  <Lock size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="#475569"
-                    value={formData.password}
-                    onChangeText={(val) => setFormData({...formData, password: val})}
-                    secureTextEntry
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>CONFIRMAR PALAVRA-PASSE</Text>
-                <View style={styles.inputWrapper}>
-                  <CheckCircle2 size={18} color="#64748b" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="#475569"
-                    value={formData.confirmPassword}
-                    onChangeText={(val) => setFormData({...formData, confirmPassword: val})}
-                    secureTextEntry
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                onPress={handleRegister}
-                disabled={loading}
-                style={styles.submitButton}
-              >
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  style={styles.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <View style={styles.buttonInner}>
-                      <Text style={styles.buttonText}>Finalizar Registro</Text>
-                      <ChevronRight size={20} color="#FFFFFF" />
+            <View style={styles.form}>
+              {step === 1 ? (
+                <View style={styles.stepContainer}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>NOME DA EMPRESA</Text>
+                    <View style={styles.inputWrapper}>
+                      <Building2 size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Nome da organização"
+                        placeholderTextColor="#475569"
+                        value={formData.companyName}
+                        onChangeText={(val) => setFormData({...formData, companyName: val})}
+                      />
                     </View>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+                  </View>
 
-        <TouchableOpacity 
-          style={styles.loginLink}
-          onPress={() => router.replace('/')}
-        >
-          <Text style={styles.loginText}>
-            Já possui conta? <Text style={styles.loginTextBold}>Iniciar Sessão</Text>
-          </Text>
-        </TouchableOpacity>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>TIPO DE NEGÓCIO</Text>
+                    <View style={styles.inputWrapper}>
+                      <Briefcase size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Ex: Corretora, Clínica"
+                        placeholderTextColor="#475569"
+                        value={formData.companyType}
+                        onChangeText={(val) => setFormData({...formData, companyType: val})}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>EMAIL INSTITUCIONAL</Text>
+                    <View style={styles.inputWrapper}>
+                      <Mail size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="geral@empresa.com"
+                        placeholderTextColor="#475569"
+                        value={formData.contactEmail}
+                        onChangeText={(val) => setFormData({...formData, contactEmail: val})}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>CONTACTO TELEFÓNICO</Text>
+                    <View style={styles.inputWrapper}>
+                      <Phone size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="+258 ..."
+                        placeholderTextColor="#475569"
+                        value={formData.contactPhone}
+                        onChangeText={(val) => setFormData({...formData, contactPhone: val})}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity 
+                    activeOpacity={0.8}
+                    onPress={handleNext}
+                    style={styles.submitButton}
+                  >
+                    <LinearGradient
+                      colors={['#2563eb', '#1d4ed8']}
+                      style={styles.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <View style={styles.buttonInner}>
+                        <Text style={styles.buttonText}>Próximo Passo</Text>
+                        <ChevronRight size={20} color="#FFFFFF" />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.stepContainer}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>NOME DO ADMINISTRADOR</Text>
+                    <View style={styles.inputWrapper}>
+                      <User size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Seu nome completo"
+                        placeholderTextColor="#475569"
+                        value={formData.adminName}
+                        onChangeText={(val) => setFormData({...formData, adminName: val})}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>EMAIL DE ACESSO</Text>
+                    <View style={styles.inputWrapper}>
+                      <Mail size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="admin@empresa.com"
+                        placeholderTextColor="#475569"
+                        value={formData.adminEmail}
+                        onChangeText={(val) => setFormData({...formData, adminEmail: val})}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>PALAVRA-PASSE</Text>
+                    <View style={styles.inputWrapper}>
+                      <Lock size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="••••••••"
+                        placeholderTextColor="#475569"
+                        value={formData.password}
+                        onChangeText={(val) => setFormData({...formData, password: val})}
+                        secureTextEntry
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>CONFIRMAR PALAVRA-PASSE</Text>
+                    <View style={styles.inputWrapper}>
+                      <CheckCircle2 size={18} color="#64748b" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="••••••••"
+                        placeholderTextColor="#475569"
+                        value={formData.confirmPassword}
+                        onChangeText={(val) => setFormData({...formData, confirmPassword: val})}
+                        secureTextEntry
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity 
+                    activeOpacity={0.8}
+                    onPress={handleRegister}
+                    disabled={loading}
+                    style={styles.submitButton}
+                  >
+                    <LinearGradient
+                      colors={['#10b981', '#059669']}
+                      style={styles.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <View style={styles.buttonInner}>
+                          <Text style={styles.buttonText}>Finalizar Registro</Text>
+                          <ChevronRight size={20} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.loginLink}
+              onPress={() => router.replace('/')}
+            >
+              <Text style={styles.loginText}>
+                Já possui conta? <Text style={styles.loginTextBold}>Iniciar Sessão</Text>
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -477,5 +516,49 @@ const styles = StyleSheet.create({
   loginTextBold: {
     color: '#60A5FA',
     fontWeight: '800',
+  },
+  successContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  successCard: {
+    width: '100%',
+    padding: 30,
+    borderRadius: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  successIconContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  successSubtitle: {
+    fontSize: 15,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  successButton: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  gradientSuccess: {
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

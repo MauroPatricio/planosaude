@@ -18,7 +18,8 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
       req.user = await User.findById(decoded.id).select('-password');
       if (req.user) {
-        req.tenantId = req.user.tenant.toString();
+        req.tenantId = req.user.tenant?.toString();
+        logger.info(`Auth: ${req.user.role} | Tenant: ${req.tenantId} | Path: ${req.path}`);
       }
       next();
     } catch (error) {
