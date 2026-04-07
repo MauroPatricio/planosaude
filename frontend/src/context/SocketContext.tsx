@@ -38,6 +38,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsConnected(false);
     });
 
+    socketInstance.on('connect_error', (err) => {
+      console.error('Socket.io Connection Error:', err.message);
+      setIsConnected(false);
+    });
+
     setSocket(socketInstance);
 
     return () => {

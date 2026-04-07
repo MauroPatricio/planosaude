@@ -17,6 +17,8 @@ import PaymentsPage from './pages/PaymentsPage';
 import ClaimsPage from './pages/ClaimsPage';
 import B2BDashboardPage from './pages/B2BDashboardPage';
 import ClientPortal from './pages/ClientPortal';
+import NewClientsPage from './pages/NewClientsPage';
+import NewSalesPage from './pages/NewSalesPage';
 import { SocketProvider } from './context/SocketContext';
 import Layout from './components/Layout';
 
@@ -59,6 +61,8 @@ function App() {
             <Route path="/leads" element={<RoleGuard roles={['superAdmin', 'admin', 'manager', 'broker']}><LeadsPage /></RoleGuard>} />
              <Route path="/institutions" element={<RoleGuard roles={['superAdmin', 'admin', 'manager', 'broker']}><InstitutionsPage /></RoleGuard>} />
             <Route path="/approvals" element={<RoleGuard roles={['superAdmin', 'admin', 'manager']}><ApprovalsPage /></RoleGuard>} />
+            <Route path="/admin/new-clients" element={<RoleGuard roles={['superAdmin', 'admin', 'manager']}><NewClientsPage /></RoleGuard>} />
+            <Route path="/new-sales" element={<RoleGuard roles={['superAdmin', 'admin', 'manager']}><NewSalesPage /></RoleGuard>} />
             <Route path="/payments" element={<RoleGuard roles={['superAdmin', 'admin', 'manager', 'broker']}><PaymentsPage /></RoleGuard>} />
             <Route path="/claims" element={<RoleGuard roles={['superAdmin', 'admin', 'manager', 'broker']}><ClaimsPage /></RoleGuard>} />
             <Route path="/portal" element={<RoleGuard roles={['client']}><ClientPortal /></RoleGuard>} />

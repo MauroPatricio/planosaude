@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,34 +6,108 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Image,
-  Switch
+  Switch,
+  ActivityIndicator,
+  Alert,
+  Platform
 } from 'react-native';
-import { 
-  User, 
-  Settings, 
-  Bell, 
-  Shield, 
-  LogOut, 
-  ChevronRight,
-  Globe,
-  CreditCard,
-  HelpCircle,
-  Fingerprint
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
+import { API_URL, BASE_URL } from '../../src/config';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
+  const [fullUser, setFullUser] = useState<any>(null);
   const router = useRouter();
   const [notifications, setNotifications] = React.useState(true);
   const [biometrics, setBiometrics] = React.useState(false);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const fetchProfile = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFullUser(data);
+    } catch (err) {
+      console.error('Erro ao carregar perfil completo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.replace('/');
   };
+
+  const handleUpdateDocument = async (field: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setUpdating(field);
+      try {
+        const formData = new FormData();
+        const uri = result.assets[0].uri;
+        const filename = uri.split('/').pop() || 'upload.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpg`;
+
+        formData.append(field, { uri, name: filename, type } as any);
+
+        await axios.patch(`${API_URL}/auth/profile/documents`, formData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        Alert.alert('Sucesso', 'Documento atualizado com sucesso.');
+        fetchProfile();
+      } catch (err) {
+        Alert.alert('Erro', 'Falha ao atualizar documento.');
+      } finally {
+        setUpdating(null);
+      }
+    }
+  };
+
+  const renderDocItem = (title: string, field: string, url?: string) => (
+    <View style={styles.docItem}>
+      <View style={styles.docIconWrapper}>
+        <Icons.FileText size={20} color="#94a3b8" />
+      </View>
+      <View style={styles.docInfo}>
+        <Text style={styles.docTitle}>{title}</Text>
+        <Text style={styles.docStatus}>{url ? 'Enviado ✓' : 'Não enviado'}</Text>
+      </View>
+      <TouchableOpacity 
+        style={styles.updateDocBtn}
+        onPress={() => handleUpdateDocument(field)}
+        disabled={!!updating}
+      >
+        {updating === field ? (
+          <ActivityIndicator size="small" color="#60A5FA" />
+        ) : (
+          <Icons.Camera size={18} color="#60A5FA" />
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -49,25 +123,56 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
            <View style={styles.avatarWrapper}>
               <View style={styles.avatar}>
-                 <Text style={styles.avatarText}>{user?.name?.[0] || 'U'}</Text>
+                {fullUser?.profileImage || user?.profileImage ? (
+                  <Image 
+                    source={{ uri: (fullUser?.profileImage || user?.profileImage).startsWith('http') 
+                      ? (fullUser?.profileImage || user?.profileImage) 
+                      : `${BASE_URL}${fullUser?.profileImage || user?.profileImage}` }} 
+                    style={styles.avatarImage} 
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>{user?.name?.[0] || 'U'}</Text>
+                )}
               </View>
-              <TouchableOpacity style={styles.editAvatarBtn}>
-                 <Settings size={14} color="#FFFFFF" />
+              <TouchableOpacity 
+                style={styles.editAvatarBtn}
+                onPress={() => handleUpdateDocument('profilePhoto')}
+                disabled={!!updating}
+              >
+                 {updating === 'profilePhoto' ? (
+                   <ActivityIndicator size="small" color="#fff" />
+                 ) : (
+                   <Icons.Settings size={14} color="#FFFFFF" />
+                 )}
               </TouchableOpacity>
            </View>
-           <Text style={styles.userName}>{user?.name}</Text>
-           <Text style={styles.userEmail}>{user?.email}</Text>
+           <Text style={styles.userName}>{fullUser?.name || user?.name}</Text>
+           <Text style={styles.userEmail}>{fullUser?.email || user?.email}</Text>
            <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{user?.role.toUpperCase()}</Text>
+              <Text style={styles.roleText}>{(fullUser?.role || user?.role || '').toUpperCase()}</Text>
            </View>
         </View>
+
+        {/* User Status / Info (Only for Clients) */}
+        {fullUser?.role === 'client' && (
+          <>
+            <Text style={styles.sectionTitle}>Documentação Verificada</Text>
+            <View style={styles.settingsGroup}>
+               {renderDocItem('Identidade (Frente)', 'idFront', fullUser?.clientId?.documents?.identificationFrontUrl)}
+               <View style={styles.divider} />
+               {renderDocItem('Identidade (Verso)', 'idBack', fullUser?.clientId?.documents?.identificationBackUrl)}
+               <View style={styles.divider} />
+               {renderDocItem('Comprovativo Morada', 'addressProof', fullUser?.clientId?.documents?.addressProofUrl)}
+            </View>
+          </>
+        )}
 
         {/* General Settings */}
         <Text style={styles.sectionTitle}>Configurações Gerais</Text>
         <View style={styles.settingsGroup}>
            <View style={styles.settingItem}>
               <View style={styles.settingIconWrapperBlue}>
-                 <Bell size={20} color="#60A5FA" />
+                 <Icons.Bell size={20} color="#60A5FA" />
               </View>
               <Text style={styles.settingLabel}>Notificações Push</Text>
               <Switch 
@@ -80,7 +185,7 @@ export default function ProfileScreen() {
 
            <View style={styles.settingItem}>
               <View style={styles.settingIconWrapperGreen}>
-                 <Fingerprint size={20} color="#34d399" />
+                 <Icons.Fingerprint size={20} color="#34d399" />
               </View>
               <Text style={styles.settingLabel}>Login com Biometria</Text>
               <Switch 
@@ -93,12 +198,12 @@ export default function ProfileScreen() {
 
            <TouchableOpacity style={styles.settingItem}>
               <View style={styles.settingIconWrapperAmber}>
-                 <Globe size={20} color="#F59E0B" />
+                 <Icons.Globe size={20} color="#F59E0B" />
               </View>
               <Text style={styles.settingLabel}>Idioma</Text>
               <View style={styles.settingRight}>
                  <Text style={styles.settingValue}>Português (PT)</Text>
-                 <ChevronRight size={18} color="#475569" />
+                 <Icons.ChevronRight size={18} color="#475569" />
               </View>
            </TouchableOpacity>
         </View>
@@ -108,36 +213,36 @@ export default function ProfileScreen() {
         <View style={styles.settingsGroup}>
            <TouchableOpacity style={styles.settingItem}>
               <View style={styles.settingIconWrapperSlate}>
-                 <Shield size={20} color="#94a3b8" />
+                 <Icons.Shield size={20} color="#94a3b8" />
               </View>
               <Text style={styles.settingLabel}>Alterar Palavra-passe</Text>
-              <ChevronRight size={18} color="#475569" />
+              <Icons.ChevronRight size={18} color="#475569" />
            </TouchableOpacity>
 
            <TouchableOpacity style={styles.settingItem}>
               <View style={styles.settingIconWrapperSlate}>
-                 <CreditCard size={20} color="#94a3b8" />
+                 <Icons.CreditCard size={20} color="#94a3b8" />
               </View>
               <Text style={styles.settingLabel}>Meus Cartões Digitais</Text>
-              <ChevronRight size={18} color="#475569" />
+              <Icons.ChevronRight size={18} color="#475569" />
            </TouchableOpacity>
 
            <TouchableOpacity style={styles.settingItem}>
               <View style={styles.settingIconWrapperSlate}>
-                 <HelpCircle size={20} color="#94a3b8" />
+                 <Icons.HelpCircle size={20} color="#94a3b8" />
               </View>
               <Text style={styles.settingLabel}>Centro de Ajuda / FAQ</Text>
-              <ChevronRight size={18} color="#475569" />
+              <Icons.ChevronRight size={18} color="#475569" />
            </TouchableOpacity>
         </View>
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-           <LogOut size={20} color="#EF4444" />
+           <Icons.LogOut size={20} color="#EF4444" />
            <Text style={styles.logoutText}>Encerrar Sessão</Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>Versão 1.0.0 (Premium Beta)</Text>
+        <Text style={styles.versionText}>Versão 1.0.1 (Premium Beta)</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -225,6 +330,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '900',
@@ -233,6 +343,46 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 16,
     marginLeft: 4,
+  },
+  docItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 16,
+  },
+  docIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  docStatus: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  updateDocBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginHorizontal: 16,
   },
   settingsGroup: {
     backgroundColor: 'rgba(30, 41, 59, 0.3)',

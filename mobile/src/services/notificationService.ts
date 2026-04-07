@@ -42,7 +42,7 @@ export async function registerForPushNotificationsAsync() {
 
 export const registerTokenWithBackend = async (token: string, userToken: string) => {
   try {
-    await axios.post('http://10.0.2.2:5000/api/users/push-token', 
+    await axios.post(`${API_URL}/users/push-token`, 
       { token }, 
       { headers: { Authorization: `Bearer ${userToken}` } }
     );

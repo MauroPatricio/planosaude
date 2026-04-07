@@ -29,9 +29,12 @@ router.post('/push-token', protect, async (req: any, res) => {
 // Equipa / Membros Management
 // Apenas admins podem gerir utilizadores completos (adicionar, remover, alterar role)
 // O protect já assegura que `req.tenantId` está preenchido
-router.get('/', protect, authorize('admin', 'manager'), getUsers);
-router.post('/', protect, authorize('admin', 'manager'), createUser);
-router.put('/:id/role', protect, authorize('admin'), updateUserRole);
-router.delete('/:id', protect, authorize('admin'), deleteUser);
+// Approvals Management
+import { getPendingClients, approveClient, rejectClient, requestCorrection } from '../controllers/userApprovalController.js';
+
+router.get('/admin/approvals/clients', protect, authorize('admin', 'manager'), getPendingClients);
+router.put('/admin/approvals/clients/:id/approve', protect, authorize('admin', 'manager'), approveClient);
+router.put('/admin/approvals/clients/:id/reject', protect, authorize('admin', 'manager'), rejectClient);
+router.put('/admin/approvals/clients/:id/correction', protect, authorize('admin', 'manager'), requestCorrection);
 
 export default router;

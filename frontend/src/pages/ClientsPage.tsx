@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Users, Plus, Search, Filter, MoreVertical, 
   Mail, Phone, FileText, CheckCircle, Clock, X,
@@ -13,7 +13,7 @@ interface Client {
   email: string;
   phone: string;
   documentId: string;
-  status: 'active' | 'inactive' | 'lead';
+  status: 'active' | 'inactive' | 'lead' | 'pending' | 'pending_correction' | 'rejected';
   institution?: { _id: string, name: string };
   billingCycle?: 'monthly' | 'quarterly' | 'annually';
   preferredPaymentDate?: string;
@@ -157,12 +157,10 @@ const ClientsPage: React.FC = () => {
 
   const fetchClients = async () => {
     try {
-      const { data } = await axios.get('/api/clients', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const { data } = await api.get('/clients');
       setClients(data);
     } catch (err) {
-      console.error('Erro ao procurar clientes');
+      console.error('Erro ao procurar clientes:', err);
     } finally {
       setLoading(false);
     }
@@ -170,23 +168,19 @@ const ClientsPage: React.FC = () => {
 
   const fetchInstitutions = async () => {
     try {
-      const { data } = await axios.get('/api/institutions', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const { data } = await api.get('/institutions');
       setInstitutions(data);
     } catch (err) {
-      console.error('Erro ao procurar instituições');
+      console.error('Erro ao procurar instituições:', err);
     }
   };
 
   const fetchPlans = async () => {
     try {
-      const { data } = await axios.get('/api/plans', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const { data } = await api.get('/plans');
       setPlans(data);
     } catch (err) {
-      console.error('Erro ao procurar planos');
+      console.error('Erro ao procurar planos:', err);
     }
   };
 
@@ -199,12 +193,10 @@ const ClientsPage: React.FC = () => {
   const fetchMembers = async (clientId: string) => {
     setMemberLoading(true);
     try {
-      const { data } = await axios.get(`/api/members?clientId=${clientId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const { data } = await api.get(`/members?clientId=${clientId}`);
       setMembers(data);
     } catch (err) {
-      console.error('Erro ao procurar membros');
+      console.error('Erro ao procurar membros:', err);
     } finally {
       setMemberLoading(false);
     }
@@ -222,15 +214,11 @@ const ClientsPage: React.FC = () => {
     setMemberLoading(true);
     try {
       if (editingMember) {
-        await axios.put(`/api/members/${editingMember._id}`, memberFormData, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
+        await api.put(`/members/${editingMember._id}`, memberFormData);
       } else {
-        await axios.post('/api/members', {
+        await api.post('/members', {
           ...memberFormData,
           primaryClient: selectedProfileClient._id
-        }, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
       }
       setShowMemberModal(false);
@@ -247,24 +235,22 @@ const ClientsPage: React.FC = () => {
   const handleDeleteMember = async (memberId: string) => {
     if (!window.confirm('Certeza que deseja remover este membro?')) return;
     try {
-      await axios.delete(`/api/members/${memberId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await api.delete(`/members/${memberId}`);
       if (selectedProfileClient) fetchMembers(selectedProfileClient._id);
     } catch (err) {
       alert('Erro ao remover membro');
+      console.error('Erro ao apagar membro:', err);
     }
   };
 
   const handleDeleteClient = async (id: string) => {
     if (!window.confirm('Tem a certeza que deseja remover este cliente?')) return;
     try {
-      await axios.delete(`/api/clients/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await api.delete(`/clients/${id}`);
       fetchClients();
     } catch (err) {
       alert('Erro ao remover cliente');
+      console.error('Erro ao apagar cliente:', err);
     }
   };
 
@@ -297,7 +283,7 @@ const ClientsPage: React.FC = () => {
         if (idBackFile) formDataUpload.append('identificationBack', idBackFile);
         if (addressFile) formDataUpload.append('addressProof', addressFile);
 
-        const uploadRes = await axios.post('/api/upload', formDataUpload, {
+        const uploadRes = await api.post('/upload', formDataUpload, {
           headers: { 
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'multipart/form-data'
@@ -309,11 +295,9 @@ const ClientsPage: React.FC = () => {
         }
       }
 
-      await axios.patch(`/api/clients/${editingClient._id}`, {
+      await api.patch(`/clients/${editingClient._id}`, {
         ...formData,
         documents: documentsUrls
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setShowEditModal(false);
       setEditingClient(null);
@@ -347,9 +331,8 @@ const ClientsPage: React.FC = () => {
         if (idBackFile) formDataUpload.append('identificationBack', idBackFile);
         if (addressFile) formDataUpload.append('addressProof', addressFile);
 
-        const uploadRes = await axios.post('/api/upload', formDataUpload, {
+        const uploadRes = await api.post('/upload', formDataUpload, {
           headers: { 
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'multipart/form-data'
           }
         });
@@ -359,11 +342,9 @@ const ClientsPage: React.FC = () => {
         }
       }
 
-      await axios.post('/api/clients', {
+      await api.post('/clients', {
         ...formData,
         documents: documentsUrls
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setShowAddModal(false);
       setFormData({ 
@@ -394,7 +375,7 @@ const ClientsPage: React.FC = () => {
         const plan = plans.find(p => p._id === bulkPlanId);
         
         if (client && plan) {
-          await axios.post('/api/sales', {
+          await api.post('/sales', {
             client: clientId,
             plan: bulkPlanId,
             value: plan.priceMonthly,
@@ -402,8 +383,6 @@ const ClientsPage: React.FC = () => {
             status: 'pending',
             notes: 'Associação em massa via Gestão de Clientes',
             beneficiaries: [{ kind: 'Client', person: clientId }]
-          }, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
           });
           successCount++;
         }
@@ -427,9 +406,7 @@ const ClientsPage: React.FC = () => {
     setLoading(true);
     try {
       for (const id of selectedIds) {
-        await axios.delete(`/api/clients/${id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
+        await api.delete(`/clients/${id}`);
       }
       setSelectedIds([]);
       fetchClients();
@@ -442,11 +419,14 @@ const ClientsPage: React.FC = () => {
   };
 
   const filteredClients = clients.filter(c => {
+    // Only show active (approved) clients in the main list
+    if (c.status !== 'active') return false;
+
     const nameMatch = c.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const emailMatch = c.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const docMatch = c.documentId?.includes(searchTerm);
     
-    return (nameMatch || emailMatch || docMatch) && c.hasActiveSubscription === true;
+    return (nameMatch || emailMatch || docMatch);
   });
 
   return (
@@ -1000,28 +980,64 @@ const ClientsPage: React.FC = () => {
                     {selectedProfileClient.documents?.identificationFrontUrl && (
                       <div className="group bg-slate-900 hover:bg-slate-800 p-4 rounded-xl border border-white/5 flex items-center justify-between transition-all">
                         <div className="flex items-center gap-3">
-                           <Eye className="w-4 h-4 text-primary-400" />
-                           <span className="text-xs font-bold text-slate-300">BI Frente</span>
+                           {selectedProfileClient.documents.identificationFrontUrl.match(/\.(jpg|jpeg|png|webp)$/i) ? (
+                             <img 
+                               src={selectedProfileClient.documents.identificationFrontUrl} 
+                               alt="BI Frente" 
+                               className="w-10 h-8 object-cover rounded border border-white/10"
+                             />
+                           ) : (
+                             <div className="w-10 h-8 bg-slate-800 rounded border border-white/10 flex items-center justify-center">
+                               <FileText className="w-4 h-4 text-primary-400" />
+                             </div>
+                           )}
+                           <div>
+                             <span className="text-xs font-bold text-slate-300 block">BI Frente</span>
+                             <button onClick={() => window.open(selectedProfileClient.documents!.identificationFrontUrl, '_blank')} className="text-[9px] font-black uppercase text-primary-400 hover:text-white underline tracking-widest mt-1">Ver Original</button>
+                           </div>
                         </div>
-                        <button onClick={() => window.open(selectedProfileClient.documents!.identificationFrontUrl, '_blank')} className="text-[10px] font-black uppercase text-primary-400 hover:text-white">Abrir</button>
                       </div>
                     )}
                     {selectedProfileClient.documents?.identificationBackUrl && (
                       <div className="group bg-slate-900 hover:bg-slate-800 p-4 rounded-xl border border-white/5 flex items-center justify-between transition-all">
                         <div className="flex items-center gap-3">
-                           <Eye className="w-4 h-4 text-primary-400" />
-                           <span className="text-xs font-bold text-slate-300">BI Verso</span>
+                           {selectedProfileClient.documents.identificationBackUrl.match(/\.(jpg|jpeg|png|webp)$/i) ? (
+                             <img 
+                               src={selectedProfileClient.documents.identificationBackUrl} 
+                               alt="BI Verso" 
+                               className="w-10 h-8 object-cover rounded border border-white/10"
+                             />
+                           ) : (
+                             <div className="w-10 h-8 bg-slate-800 rounded border border-white/10 flex items-center justify-center">
+                               <FileText className="w-4 h-4 text-primary-400" />
+                             </div>
+                           )}
+                           <div>
+                             <span className="text-xs font-bold text-slate-300 block">BI Verso</span>
+                             <button onClick={() => window.open(selectedProfileClient.documents!.identificationBackUrl, '_blank')} className="text-[9px] font-black uppercase text-primary-400 hover:text-white underline tracking-widest mt-1">Ver Original</button>
+                           </div>
                         </div>
-                        <button onClick={() => window.open(selectedProfileClient.documents!.identificationBackUrl, '_blank')} className="text-[10px] font-black uppercase text-primary-400 hover:text-white">Abrir</button>
                       </div>
                     )}
                     {selectedProfileClient.documents?.addressProofUrl && (
                       <div className="group bg-slate-900 hover:bg-slate-800 p-4 rounded-xl border border-white/5 flex items-center justify-between transition-all">
                         <div className="flex items-center gap-3">
-                           <Eye className="w-4 h-4 text-primary-400" />
-                           <span className="text-xs font-bold text-slate-300">Residência</span>
+                           {selectedProfileClient.documents.addressProofUrl.match(/\.(jpg|jpeg|png|webp)$/i) ? (
+                             <img 
+                               src={selectedProfileClient.documents.addressProofUrl} 
+                               alt="Residência" 
+                               className="w-10 h-8 object-cover rounded border border-white/10"
+                             />
+                           ) : (
+                             <div className="w-10 h-8 bg-slate-800 rounded border border-white/10 flex items-center justify-center">
+                               <FileText className="w-4 h-4 text-primary-400" />
+                             </div>
+                           )}
+                           <div>
+                             <span className="text-xs font-bold text-slate-300 block">Comprov. Morada</span>
+                             <button onClick={() => window.open(selectedProfileClient.documents!.addressProofUrl, '_blank')} className="text-[9px] font-black uppercase text-primary-400 hover:text-white underline tracking-widest mt-1">Ver Original</button>
+                           </div>
                         </div>
-                        <button onClick={() => window.open(selectedProfileClient.documents!.addressProofUrl, '_blank')} className="text-[10px] font-black uppercase text-primary-400 hover:text-white">Abrir</button>
                       </div>
                     )}
                     {Object.keys(selectedProfileClient.documents || {}).length === 0 && (

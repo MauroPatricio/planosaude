@@ -32,6 +32,24 @@ export const getInstitutions = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getPublicInstitutions = async (req: Request, res: Response) => {
+  try {
+    // Return institutions for the main tenant for public registration
+    const defaultTenant = await mongoose.model('Tenant').findOne();
+    if (!defaultTenant) return res.json([]);
+    
+    const institutions = await Institution.find({ 
+      tenant: defaultTenant._id,
+      status: 'active' 
+    }).select('name _id').sort({ name: 1 });
+    
+    res.json(institutions);
+  } catch (error: any) {
+    logger.error(`Get Public Institutions Error: ${error.message}`);
+    res.status(500).json({ message: 'Erro ao carregar instituições' });
+  }
+};
+
 export const createInstitution = async (req: AuthRequest, res: Response) => {
   try {
     const institution = await Institution.create({

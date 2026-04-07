@@ -5,46 +5,47 @@ import {
   ScrollView, 
   StyleSheet, 
   TouchableOpacity, 
-  FlatList,
   RefreshControl,
   Image,
   Dimensions,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import { 
-  CreditCard, 
-  Receipt, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle,
-  ChevronRight,
-  Download,
-  Smartphone,
-  Banknote,
-  ArrowUpRight
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/authStore';
+import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { API_URL } from '../../src/config';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function PaymentsScreen() {
-  const { token } = useAuthStore();
+  const { token, refreshUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'bank' | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const baseUrl = 'http://10.0.2.2:5000/api';
-      const { data } = await axios.get(`${baseUrl}/payments`, { 
+      await refreshUser();
+      
+      const { data } = await axios.get(`${API_URL}/payments`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
-      setInvoices(data);
-    } catch (err) {
-      console.error('Erro ao carregar faturas');
+      setInvoices(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('Erro ao carregar faturas:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -54,17 +55,93 @@ export default function PaymentsScreen() {
     fetchData();
   }, [token]);
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'paid': return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', icon: <CheckCircle size={14} color="#10b981" /> };
-      case 'pending': return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', icon: <Clock size={14} color="#f59e0b" /> };
-      case 'overdue': return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', icon: <AlertCircle size={14} color="#ef4444" /> };
-      default: return { bg: 'rgba(30, 41, 59, 0.5)', text: '#64748b', icon: <Clock size={14} color="#64748b" /> };
+  const handleInvoicePress = (inv: any) => {
+    if (inv.status === 'paid' || inv.status === 'pending') {
+      Alert.alert('Estado da Fatura', `Esta fatura está ${inv.status === 'paid' ? 'paga' : 'a aguardar validação'}.`);
+      return;
+    }
+    setSelectedInvoice(inv);
+    setModalVisible(true);
+  };
+
+  const handleMpesaPayment = async () => {
+    if (!phoneNumber || phoneNumber.length < 9) {
+      Alert.alert('Erro', 'Por favor, insira um número M-Pesa válido.');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      await axios.post(`${API_URL}/payments/${selectedInvoice._id}/simulate-mpesa`, { 
+        phoneNumber 
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Sucesso', 'Pagamento M-Pesa processado com sucesso!');
+      setModalVisible(false);
+      fetchData();
+    } catch (err) {
+      Alert.alert('Erro', 'Falha ao processar pagamento M-Pesa.');
+    } finally {
+      setProcessing(false);
     }
   };
 
-  const totalPaid = invoices.filter(i => i.status === 'paid').reduce((acc, current) => acc + current.amount, 0);
-  const pendingCount = invoices.filter(i => i.status !== 'paid').length;
+  const handleProofUpload = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setProcessing(true);
+      try {
+        const formData = new FormData();
+        const uri = result.assets[0].uri;
+        const filename = uri.split('/').pop() || 'receipt.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpg`;
+
+        formData.append('proof', { uri, name: filename, type } as any);
+        formData.append('paymentMethod', 'bank_transfer');
+
+        await axios.patch(`${API_URL}/payments/${selectedInvoice._id}/proof`, formData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        Alert.alert('Sucesso', 'Comprovativo enviado para validação.');
+        setModalVisible(false);
+        fetchData();
+      } catch (err) {
+        Alert.alert('Erro', 'Falha ao enviar comprovativo.');
+      } finally {
+        setProcessing(false);
+      }
+    }
+  };
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'paid': return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', icon: <Icons.CheckCircle size={14} color="#10b981" /> };
+      case 'pending': return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', icon: <Icons.Clock size={14} color="#f59e0b" /> };
+      case 'overdue': return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', icon: <Icons.AlertCircle size={14} color="#ef4444" /> };
+      case 'rejected': return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', icon: <Icons.XCircle size={14} color="#ef4444" /> };
+      default: return { bg: 'rgba(30, 41, 59, 0.5)', text: '#64748b', icon: <Icons.Clock size={14} color="#64748b" /> };
+    }
+  };
+
+  const totalPaid = Array.isArray(invoices) 
+    ? invoices.filter(i => i.status === 'paid').reduce((acc, current) => acc + (current.amount || 0), 0)
+    : 0;
+
+  const pendingCount = Array.isArray(invoices) 
+    ? invoices.filter(i => i.status !== 'paid').length
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -87,7 +164,7 @@ export default function PaymentsScreen() {
             style={styles.summaryCard}
           >
             <View style={styles.summaryIconWrapper}>
-              <Smartphone size={24} color="#60A5FA" />
+              <Icons.Smartphone size={24} color="#60A5FA" />
             </View>
             <Text style={styles.summaryLabel}>TOTAL LIQUIDADO</Text>
             <Text style={styles.summaryValue}>{totalPaid.toLocaleString()} MT</Text>
@@ -95,79 +172,232 @@ export default function PaymentsScreen() {
           
           <View style={styles.summaryCardAlt}>
             <View style={styles.summaryIconWrapperAmber}>
-              <Clock size={24} color="#F59E0B" />
+              <Icons.Clock size={24} color="#F59E0B" />
             </View>
             <Text style={styles.summaryLabel}>PENDENTES</Text>
             <Text style={styles.summaryValue}>{pendingCount}</Text>
           </View>
         </View>
 
-        {/* Payment Methods Section */}
+        {/* Payment Methods Info */}
         <Text style={styles.sectionTitle}>Métodos Disponíveis</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.methodsRow}>
-          <TouchableOpacity style={styles.methodBtn}>
+          <View style={styles.methodBtn}>
              <Image source={{ uri: 'https://seeklogo.com/images/M/m-pesa-logo-7E68F3C7E3-seeklogo.com.png' }} style={styles.methodImg} resizeMode="contain" />
              <Text style={styles.methodText}>M-Pesa</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.methodBtn}>
-             <CreditCard size={24} color="#60A5FA" />
+          </View>
+          <View style={styles.methodBtn}>
+             <Icons.CreditCard size={24} color="#60A5FA" />
              <Text style={styles.methodText}>Cartão</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.methodBtn}>
-             <Banknote size={24} color="#10B981" />
-             <Text style={styles.methodText}>Transferência</Text>
-          </TouchableOpacity>
+          </View>
+          <View style={styles.methodBtn}>
+             <Icons.Banknote size={24} color="#10B981" />
+             <Text style={styles.methodText}>NIB/IBAN</Text>
+          </View>
         </ScrollView>
 
         {/* Invoices List */}
         <View style={styles.listHeader}>
           <Text style={styles.sectionTitle}>Histórico de Faturas</Text>
-          <TouchableOpacity>
-             <Text style={styles.seeAllText}>Ver Todas</Text>
+          <TouchableOpacity onPress={fetchData}>
+             <Icons.RefreshCw size={14} color="#60A5FA" />
           </TouchableOpacity>
         </View>
 
         {invoices.length > 0 ? invoices.map((inv) => {
           const style = getStatusStyle(inv.status);
           return (
-            <TouchableOpacity key={inv._id} style={styles.invoiceCard} activeOpacity={0.8}>
+            <TouchableOpacity 
+              key={inv._id} 
+              style={styles.invoiceCard} 
+              activeOpacity={0.8}
+              onPress={() => handleInvoicePress(inv)}
+            >
                 <View style={styles.invoiceMain}>
                     <View style={styles.invoiceIconWrapper}>
-                        <Receipt size={22} color="#94a3b8" />
+                        <Icons.Receipt size={22} color="#94a3b8" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <View style={styles.invoiceHeader}>
                             <Text style={styles.invoiceNumber}>{inv.invoiceNumber}</Text>
                             <View style={[styles.statusBadge, { backgroundColor: style.bg }]}>
                                 {style.icon}
-                                <Text style={[styles.statusText, { color: style.text }]}>{inv.status.toUpperCase()}</Text>
+                                <Text style={[styles.statusText, { color: style.text }]}>
+                                  {inv.status?.toUpperCase() || 'EM ANÁLISE'}
+                                </Text>
                             </View>
                         </View>
-                        <Text style={styles.invoiceAmount}>{inv.amount.toLocaleString()} MT</Text>
-                        <Text style={styles.invoiceDate}>Vence aos {new Date(inv.dueDate).toLocaleDateString()}</Text>
+                        <Text style={styles.invoiceAmount}>{(inv.amount || 0).toLocaleString()} MT</Text>
+                        <Text style={styles.invoiceDate}>
+                          Vence aos {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}
+                        </Text>
                     </View>
                 </View>
                 
                 <View style={styles.invoiceActions}>
-                    <TouchableOpacity style={styles.downloadBtn}>
-                        <Download size={16} color="#64748b" />
-                    </TouchableOpacity>
-                    <ChevronRight size={18} color="#334155" />
+                    {inv.status !== 'paid' && (
+                        <TouchableOpacity style={styles.payNowBtn} onPress={() => handleInvoicePress(inv)}>
+                           <Icons.Wallet size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    )}
+                    <Icons.ChevronRight size={18} color="#334155" />
                 </View>
             </TouchableOpacity>
           );
         }) : (
           <View style={styles.emptyContainer}>
-             <Receipt size={40} color="#334155" />
+             <Icons.Receipt size={40} color="#334155" />
              <Text style={styles.emptyText}>Nenhuma fatura registada.</Text>
           </View>
         )}
 
         <View style={styles.footerNote}>
-           <AlertCircle size={16} color="#475569" />
+           <Icons.AlertCircle size={16} color="#475569" />
            <Text style={styles.footerNoteText}>O processamento de pagamentos via transferência pode demorar 24h.</Text>
         </View>
       </ScrollView>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalContent}
+            >
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Pagamento</Text>
+                    <TouchableOpacity onPress={() => { setModalVisible(false); setPaymentMethod(null); }}>
+                        <Icons.X size={24} color="#94a3b8" />
+                    </TouchableOpacity>
+                </View>
+
+                {selectedInvoice && (
+                  <View style={styles.modalInvoiceInfo}>
+                      <Text style={styles.modalAmountLabel}>Total a Pagar</Text>
+                      <Text style={styles.modalAmountValue}>{selectedInvoice.amount.toLocaleString()} MT</Text>
+                      <Text style={styles.modalInvoiceRef}>REF: {selectedInvoice.invoiceNumber}</Text>
+                  </View>
+                )}
+
+                {!paymentMethod ? (
+                  <View style={styles.methodSelection}>
+                      <Text style={styles.methodSelectionTitle}>Escolha o método:</Text>
+                      <TouchableOpacity 
+                        style={styles.selectionCard}
+                        onPress={() => setPaymentMethod('mpesa')}
+                      >
+                          <Image source={{ uri: 'https://seeklogo.com/images/M/m-pesa-logo-7E68F3C7E3-seeklogo.com.png' }} style={styles.methodImg} resizeMode="contain" />
+                          <View style={{ flex: 1 }}>
+                              <Text style={styles.selectionTitle}>M-Pesa</Text>
+                              <Text style={styles.selectionDesc}>Pagamento instantâneo via telemóvel</Text>
+                          </View>
+                          <Icons.ChevronRight size={20} color="#334155" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={styles.selectionCard}
+                        onPress={() => setPaymentMethod('bank')}
+                      >
+                          <View style={styles.bankIconWrapper}>
+                             <Icons.Banknote size={24} color="#10B981" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                              <Text style={styles.selectionTitle}>Transferência Bancária</Text>
+                              <Text style={styles.selectionDesc}>Submeter comprovativo de depósito</Text>
+                          </View>
+                          <Icons.ChevronRight size={20} color="#334155" />
+                      </TouchableOpacity>
+                  </View>
+                ) : paymentMethod === 'mpesa' ? (
+                  <View style={styles.mpesaFlow}>
+                      <TouchableOpacity style={styles.backBtn} onPress={() => setPaymentMethod(null)}>
+                          <Icons.ArrowLeft size={16} color="#60A5FA" />
+                          <Text style={styles.backText}>Voltar</Text>
+                      </TouchableOpacity>
+                      
+                      <View style={styles.mpesaInstructionsCard}>
+                         <Text style={styles.instrTitle}>Instruções M-Pesa:</Text>
+                         <Text style={styles.instrStep}>1. Digite <Text style={{fontWeight: '900'}}>*150#</Text></Text>
+                         <Text style={styles.instrStep}>2. Selecione <Text style={{fontWeight: '900'}}>6 – Pagamentos</Text></Text>
+                         <Text style={styles.instrStep}>3. Selecione <Text style={{fontWeight: '900'}}>7 – Código de Serviço</Text></Text>
+                         <Text style={styles.instrStep}>4. Digite o Código: <Text style={{fontWeight: '900', color: '#60A5FA'}}>900100</Text></Text>
+                         <Text style={styles.instrStep}>5. Referência: <Text style={{fontWeight: '900', color: '#60A5FA'}}>{selectedInvoice.invoiceNumber}</Text></Text>
+                      </View>
+
+                      <View style={styles.inputContainer}>
+                          <Icons.Smartphone size={20} color="#475569" style={styles.inputIcon} />
+                          <TextInput 
+                            style={styles.input}
+                            placeholder="Seu número (para registo)"
+                            placeholderTextColor="#475569"
+                            keyboardType="phone-pad"
+                            value={phoneNumber}
+                            onChangeText={setPhoneNumber}
+                            maxLength={9}
+                          />
+                      </View>
+
+                      <TouchableOpacity 
+                        style={styles.uploadProofBtn}
+                        onPress={handleProofUpload}
+                        disabled={processing}
+                      >
+                         {processing ? (
+                           <ActivityIndicator color="#60A5FA" />
+                         ) : (
+                           <>
+                             <Icons.Camera size={20} color="#60A5FA" />
+                             <Text style={styles.uploadProofText}>Submeter Comprovativo M-Pesa</Text>
+                           </>
+                         )}
+                      </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.bankFlow}>
+                      <TouchableOpacity style={styles.backBtn} onPress={() => setPaymentMethod(null)}>
+                          <Icons.ArrowLeft size={16} color="#60A5FA" />
+                          <Text style={styles.backText}>Voltar</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.bankDetails}>
+                          <Text style={styles.bankDetailLabel}>NOME DA EMPRESA:</Text>
+                          <Text style={styles.bankDetailValue}>NHIQUELA SERVICOS & CONSULTORIA</Text>
+                          <Text style={styles.bankDetailLabel}>BANCO:</Text>
+                          <Text style={styles.bankDetailValue}>BCI (Moçambique)</Text>
+                          <Text style={styles.bankDetailLabel}>NÚMERO DA CONTA:</Text>
+                          <Text style={styles.bankDetailValue}>213456789</Text>
+                          <Text style={styles.bankDetailLabel}>NIB / IBAN:</Text>
+                          <Text style={styles.bankDetailValue}>0010 0000 2134 5678 9012 3</Text>
+                      </View>
+
+                      <TouchableOpacity 
+                        style={styles.uploadProofBtn}
+                        onPress={handleProofUpload}
+                        disabled={processing}
+                      >
+                         {processing ? (
+                           <ActivityIndicator color="#60A5FA" />
+                         ) : (
+                           <>
+                             <Icons.UploadCloud size={20} color="#60A5FA" />
+                             <Text style={styles.uploadProofText}>Anexar Comprovativo (Foto)</Text>
+                           </>
+                         )}
+                      </TouchableOpacity>
+
+                      <Text style={styles.bankNotice}>
+                        Após o upload, a nossa equipa irá validar o depósito em até 24h úteis.
+                      </Text>
+                  </View>
+                )}
+            </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -354,6 +584,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: 'rgba(148, 163, 184, 0.05)',
   },
+  payNowBtn: {
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
@@ -383,5 +620,204 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     lineHeight: 16,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: height * 0.8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  modalInvoiceInfo: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  modalAmountLabel: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  modalAmountValue: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  modalInvoiceRef: {
+    color: '#475569',
+    fontSize: 11,
+    marginTop: 8,
+    fontWeight: '700',
+  },
+  methodSelection: {
+    gap: 12,
+  },
+  methodSelectionTitle: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  selectionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  selectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  selectionDesc: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  bankIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mpesaInstructionsCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+    gap: 8,
+  },
+  instrTitle: {
+    color: '#60A5FA',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  instrStep: {
+    color: '#94a3b8',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  mpesaFlow: {
+    gap: 16,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backText: {
+    color: '#60A5FA',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  flowInstructions: {
+    color: '#94a3b8',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 56,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmBtn: {
+    backgroundColor: '#10b981',
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  confirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  bankFlow: {
+    gap: 16,
+  },
+  bankDetails: {
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  bankDetailLabel: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  bankDetailValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  uploadProofBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+  },
+  uploadProofText: {
+    color: '#60A5FA',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  bankNotice: {
+    color: '#475569',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
   }
 });

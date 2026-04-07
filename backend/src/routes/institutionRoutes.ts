@@ -11,10 +11,10 @@ import {
 
 const router = Router();
 
+router.get('/stats/global', protect, getGlobalB2BStats);
 router.get('/', protect, getInstitutions);
 router.post('/', protect, authorize('admin', 'manager'), createInstitution);
 router.put('/:id', protect, authorize('admin', 'manager'), updateInstitution);
-router.get('/stats/global', protect, getGlobalB2BStats);
 router.get('/:id/stats', protect, getInstitutionStats);
 router.post('/:id/pay-collective', protect, authorize('admin', 'manager'), processCollectivePayment);
 

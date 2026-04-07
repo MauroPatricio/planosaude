@@ -10,41 +10,39 @@ import {
   Image,
   Alert
 } from 'react-native';
-import { 
-  Heart, 
-  Users, 
-  Plus, 
-  ChevronRight, 
-  ShieldCheck, 
-  UserCircle,
-  FileText,
-  AlertCircle
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../src/config';
+import { useSocket } from '../../src/context/SocketContext';
 
 export default function HealthScreen() {
-  const { token, user } = useAuthStore();
+  const { token, user, refreshUser } = useAuthStore();
+  const { socket } = useSocket();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const baseUrl = 'http://10.0.2.2:5000/api';
-      const [membersRes, subsRes] = await Promise.all([
-        axios.get(`${baseUrl}/clients/members`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${baseUrl}/subscriptions`, { headers: { Authorization: `Bearer ${token}` } })
+      await refreshUser();
+      
+      const [membersRes, subsRes, requestsRes] = await Promise.all([
+        axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/subscriptions`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/plan-requests/my`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setMembers(membersRes.data);
-      setSubscriptions(subsRes.data);
-    } catch (err) {
-      console.error('Erro ao carregar dados de saúde');
+      setSubscriptions(subsRes.data.filter((s: any) => s.status !== 'cancelled'));
+      setRequests(requestsRes.data.filter((r: any) => r.status === 'pending'));
+    } catch (err: any) {
+      console.error('Erro ao carregar dados de saúde:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -54,15 +52,21 @@ export default function HealthScreen() {
     fetchData();
   }, [token]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('planRequest:updated', (data: any) => {
+      console.log('Plan Request updated via Socket:', data);
+      fetchData();
+    });
+
+    return () => {
+      socket.off('planRequest:updated');
+    };
+  }, [socket]);
+
   const handleAddMember = () => {
-    Alert.alert(
-      "Adicionar Dependente",
-      "Deseja iniciar o processo de inclusão de um novo membro familiar? Uma solicitação de aprovação será enviada à corretora.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Continuar", onPress: () => console.log("Navegar para formulário de adição") }
-      ]
-    );
+    router.push('/dependents/add');
   };
 
   return (
@@ -81,48 +85,146 @@ export default function HealthScreen() {
 
         {/* Active Plans Section */}
         <Text style={styles.sectionTitle}>Plano Principal</Text>
-        {subscriptions.length > 0 ? subscriptions.map(sub => (
-          <LinearGradient
-            key={sub._id}
-            colors={['rgba(30, 41, 59, 0.8)', 'rgba(30, 41, 59, 0.4)']}
-            style={styles.planCard}
-          >
-            <View style={styles.planHeader}>
-              <View style={styles.planIconWrapper}>
-                <ShieldCheck size={28} color="#60A5FA" />
-              </View>
-              <View>
-                <Text style={styles.planName}>{sub.plan?.name || 'Plano de Saúde'}</Text>
-                <Text style={styles.planOperator}>{sub.plan?.operator || 'Operadora Parceira'}</Text>
-              </View>
-            </View>
-            <View style={styles.planDivider} />
-            <View style={styles.planFooter}>
-              <View>
-                <Text style={styles.planStatusLabel}>ESTADO</Text>
-                <View style={styles.statusBadge}>
-                   <View style={styles.statusDot} />
-                   <Text style={styles.statusText}>{sub.status.toUpperCase()}</Text>
+        {subscriptions.length > 0 ? (() => {
+          const sub = subscriptions[0];
+          const pendingCancellation = requests.find(r => r.plan?._id === sub.plan?._id && r.requestType === 'cancellation');
+          return (
+            <LinearGradient
+              key={sub._id}
+              colors={['rgba(30, 41, 59, 0.8)', 'rgba(30, 41, 59, 0.4)']}
+              style={styles.planCard}
+            >
+              <View style={styles.planHeader}>
+                <View style={styles.planIconWrapper}>
+                  <Icons.ShieldCheck size={28} color="#60A5FA" />
+                </View>
+                <View>
+                  <Text style={styles.planName}>{sub.plan?.name || 'Plano de Saúde'}</Text>
+                  <Text style={styles.planOperator}>{sub.plan?.operator || 'Operadora Parceira'}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.detailsBtn}>
-                <Text style={styles.detailsBtnText}>Ver Cobertura</Text>
-                <ChevronRight size={14} color="#60A5FA" />
+              <View style={styles.planDivider} />
+              <View style={styles.planFooter}>
+                <View>
+                  <Text style={styles.planStatusLabel}>ESTADO</Text>
+                  <View style={[
+                    styles.statusBadge, 
+                    (sub.status === 'pending' || pendingCancellation) && { backgroundColor: 'rgba(245, 158, 11, 0.1)' }
+                  ]}>
+                     <View style={[
+                       styles.statusDot, 
+                       (sub.status === 'pending' || pendingCancellation) && { backgroundColor: '#F59E0B' }
+                     ]} />
+                     <Text style={[
+                       styles.statusText, 
+                       (sub.status === 'pending' || pendingCancellation) && { color: '#F59E0B' }
+                     ]}>
+                       {pendingCancellation ? 'CANCELAMENTO EM ANÁLISE' : 
+                        sub.status === 'pending' ? 'AGUARDANDO PAGAMENTO' : 
+                        sub.status?.toUpperCase() || 'ATIVO'}
+                     </Text>
+                  </View>
+                </View>
+                <View>
+                  <TouchableOpacity 
+                    style={styles.detailsBtn}
+                    onPress={() => router.push(`/plans/${sub.plan?._id}`)}
+                  >
+                    <Text style={styles.detailsBtnText}>Ver Cobertura</Text>
+                    <Icons.ChevronRight size={14} color="#60A5FA" />
+                  </TouchableOpacity>
+
+                  {!pendingCancellation && (
+                    <TouchableOpacity 
+                      style={[styles.detailsBtn, { marginTop: 8 }]}
+                      onPress={() => {
+                        Alert.alert(
+                          'Cancelar Plano',
+                          'Deseja solicitar o cancelamento/desassociação do seu plano atual? Este pedido será analisado pela administração.',
+                          [
+                            { text: 'Voltar', style: 'cancel' },
+                            { 
+                              text: 'Solicitar Cancelamento', 
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  setLoading(true);
+                                  await axios.post(`${API_URL}/plan-requests`, {
+                                    planId: sub.plan?._id,
+                                    clientId: user?.clientId,
+                                    requestType: 'cancellation'
+                                  }, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                  Alert.alert('Sucesso', 'Seu pedido de cancelamento foi enviado para aprovação.');
+                                  fetchData();
+                                } catch (err: any) {
+                                  Alert.alert('Erro', err.response?.data?.message || 'Erro ao enviar pedido');
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={[styles.detailsBtnText, { color: '#EF4444' }]}>Desassociar Plano</Text>
+                      <Icons.Slash size={14} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </LinearGradient>
+          );
+        })() : requests.length > 0 ? (
+          <TouchableOpacity 
+            activeOpacity={0.9}
+            onPress={() => router.push(`/plans/${requests[0].plan?._id}`)}
+          >
+            <LinearGradient
+              colors={['rgba(245, 158, 11, 0.1)', 'rgba(30, 41, 59, 0.4)']}
+              style={[styles.noPlanCard, { borderColor: 'rgba(245, 158, 11, 0.2)' }]}
+            >
+              <View style={[styles.noPlanIconWrapper, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                <Icons.Clock size={32} color="#F59E0B" />
+              </View>
+              <View style={styles.noPlanContent}>
+                <Text style={styles.noPlanTitle}>Pedido em Análise</Text>
+                <Text style={styles.noPlanSubtitle}>Clique para ver detalhes do plano {(requests[0].plan as any)?.name}.</Text>
+                <View style={[styles.addPlanBtn, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                  <Text style={[styles.addPlanBtnText, { color: '#F59E0B' }]}>Aguardando Aprovação...</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <LinearGradient
+            colors={['rgba(37, 99, 235, 0.1)', 'rgba(30, 41, 59, 0.4)']}
+            style={styles.noPlanCard}
+          >
+            <View style={styles.noPlanIconWrapper}>
+              <Icons.PlusCircle size={32} color="#60A5FA" />
+            </View>
+            <View style={styles.noPlanContent}>
+              <Text style={styles.noPlanTitle}>Você ainda não possui um plano ativo</Text>
+              <Text style={styles.noPlanSubtitle}>Comece por escolher um plano que se adapte às suas necessidades.</Text>
+              <TouchableOpacity 
+                style={styles.addPlanBtn}
+                onPress={() => router.push('/plans/list')}
+              >
+                <Text style={styles.addPlanBtnText}>Adicionar Plano</Text>
+                <Icons.ChevronRight size={16} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </LinearGradient>
-        )) : (
-          <View style={styles.emptyCard}>
-            <Heart size={32} color="#475569" />
-            <Text style={styles.emptyText}>Nenhum plano ativo encontrado.</Text>
-          </View>
         )}
 
         {/* Members Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Agregado Familiar</Text>
           <TouchableOpacity onPress={handleAddMember} style={styles.addBtn}>
-            <Plus size={18} color="#FFFFFF" />
+            <Icons.Plus size={18} color="#FFFFFF" />
             <Text style={styles.addBtnText}>Adicionar</Text>
           </TouchableOpacity>
         </View>
@@ -131,9 +233,9 @@ export default function HealthScreen() {
           {/* Main User Card */}
           <View style={styles.memberCard}>
             <View style={styles.memberAvatarWrapper}>
-              <UserCircle size={40} color="#60A5FA" />
+              <Icons.UserCircle size={40} color="#60A5FA" />
             </View>
-            <Text style={styles.memberName}>{user?.name.split(' ')[0]} (Eu)</Text>
+            <Text style={styles.memberName}>{user?.name?.split(' ')[0] || 'Eu'}</Text>
             <Text style={styles.memberRole}>Titular</Text>
           </View>
 
@@ -141,28 +243,38 @@ export default function HealthScreen() {
           {members.map(member => (
             <View key={member._id} style={styles.memberCard}>
               <View style={styles.memberAvatarWrapper}>
-                <UserCircle size={40} color="#94a3b8" />
+                <Icons.UserCircle size={40} color="#94a3b8" />
               </View>
-              <Text style={styles.memberName}>{member.name.split(' ')[0]}</Text>
+              <Text style={styles.memberName}>{member.name?.split(' ')[0] || 'Membro'}</Text>
               <Text style={styles.memberRole}>{member.relationship || 'Dependente'}</Text>
             </View>
           ))}
         </View>
 
         {/* Benefits Card */}
-        <TouchableOpacity style={styles.benefitsCard}>
+        <TouchableOpacity 
+          style={styles.benefitsCard}
+          onPress={() => {
+            const planId = subscriptions[0]?.plan?._id || requests[0]?.plan?._id;
+            if (planId) {
+              router.push(`/plans/${planId}`);
+            } else {
+              router.push('/plans/list');
+            }
+          }}
+        >
            <LinearGradient
             colors={['rgba(96, 165, 250, 0.1)', 'transparent']}
             style={StyleSheet.absoluteFill}
            />
            <View style={styles.benefitsIconWrapper}>
-              <FileText size={24} color="#60A5FA" />
+              <Icons.FileText size={24} color="#60A5FA" />
            </View>
            <View style={{ flex: 1 }}>
-              <Text style={styles.benefitsTitle}>Meus Benefícios Premium</Text>
+              <Text style={styles.benefitsTitle}>Meus Benefícios</Text>
               <Text style={styles.benefitsDesc}>Consulte a lista completa de clínicas e exames cobertos pelo seu plano.</Text>
            </View>
-           <ChevronRight size={20} color="#475569" />
+           <Icons.ChevronRight size={20} color="#475569" />
         </TouchableOpacity>
 
         {/* Claims Card */}
@@ -171,18 +283,18 @@ export default function HealthScreen() {
            onPress={() => router.push('/claims')}
         >
            <View style={[styles.benefitsIconWrapper, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <AlertCircle size={24} color="#F87171" />
+              <Icons.AlertCircle size={24} color="#F87171" />
            </View>
            <View style={{ flex: 1 }}>
               <Text style={[styles.benefitsTitle, { color: '#F87171' }]}>Comunicar Sinistro</Text>
               <Text style={styles.benefitsDesc}>Peça o reembolso ou autorização para um evento de saúde.</Text>
            </View>
-           <ChevronRight size={20} color="#F87171" />
+           <Icons.ChevronRight size={20} color="#F87171" />
         </TouchableOpacity>
 
         {/* Warning Card */}
         <View style={styles.warningCard}>
-           <AlertCircle size={20} color="#F59E0B" />
+           <Icons.AlertCircle size={20} color="#F59E0B" />
            <Text style={styles.warningText}>Algumas alterações podem levar até 48h para serem aprovadas pela corretora.</Text>
         </View>
       </ScrollView>
@@ -357,23 +469,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  emptyCard: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.2)',
+  noPlanCard: {
+    padding: 24,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    borderStyle: 'dashed',
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
     marginBottom: 32,
   },
-  emptyText: {
-    color: '#475569',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 12,
-    textAlign: 'center',
+  noPlanIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noPlanContent: {
+    flex: 1,
+    gap: 4,
+  },
+  noPlanTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  noPlanSubtitle: {
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  addPlanBtn: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
+  addPlanBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   benefitsCard: {
     backgroundColor: 'rgba(30, 41, 59, 0.5)',

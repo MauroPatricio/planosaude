@@ -3,14 +3,13 @@ import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { 
   Users, TrendingUp, DollarSign, Briefcase, 
   Search, LogOut, LayoutDashboard, Menu, X, Bell, Shield, Building2, ClipboardCheck, 
-  Layout as LayoutIcon, Home, CreditCard, AlertCircle
+  Layout as LayoutIcon, Home, CreditCard, AlertCircle, ShoppingBag
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSocket } from '../context/SocketContext';
 import NotificationDropdown from './NotificationDropdown';
 import { Toaster, toast } from 'react-hot-toast';
-import axios from 'axios';
-
+import api from '../utils/api';
 const Layout: React.FC = () => {
   const { user, logout, token } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,12 +20,10 @@ const Layout: React.FC = () => {
 
   const fetchNotifications = async () => {
     try {
-      const { data } = await axios.get('/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/notifications');
       setNotifications(data);
     } catch (err) {
-      console.error('Erro ao carregar notificações');
+      console.error('Erro ao carregar notificações:', err);
     }
   };
 
@@ -62,23 +59,19 @@ const Layout: React.FC = () => {
 
   const handleMarkRead = async (id: string) => {
     try {
-      await axios.put(`/api/notifications/${id}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (err) {
-      console.error('Erro ao marcar como lida');
+      console.error('Erro ao marcar como lida:', err);
     }
   };
 
   const handleMarkAllRead = async () => {
     try {
-      await axios.put('/api/notifications/read-all', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put('/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
-      console.error('Erro ao marcar todas como lidas');
+      console.error('Erro ao marcar todas como lidas:', err);
     }
   };
 
@@ -91,6 +84,8 @@ const Layout: React.FC = () => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['superAdmin', 'admin', 'manager', 'broker'] },
     { name: 'Portal RH (B2B)', path: '/b2b', icon: Building2, roles: ['hr_admin'] },
     { name: 'Portal do Cliente', path: '/portal', icon: Home, roles: ['client'] },
+    { name: 'Novos Clientes', path: '/admin/new-clients', icon: Users, roles: ['superAdmin', 'admin', 'manager'], badge: true },
+    { name: 'Novas Vendas', path: '/new-sales', icon: ShoppingBag, roles: ['superAdmin', 'admin', 'manager'] },
     { name: 'Aprovações', path: '/approvals', icon: ClipboardCheck, roles: ['superAdmin', 'admin', 'manager'] },
     { name: 'Instituições', path: '/institutions', icon: Building2, roles: ['superAdmin', 'admin', 'manager', 'broker'] },
     { name: 'Clientes', path: '/clients', icon: Users, roles: ['superAdmin', 'admin', 'manager', 'broker'] },
@@ -118,12 +113,17 @@ const Layout: React.FC = () => {
             key={item.path}
             to={item.path}
             className={({ isActive }) => 
-              `sidebar-link ${isActive ? 'sidebar-link-active' : 'sidebar-link-inactive'}`
+              `sidebar-link ${isActive ? 'sidebar-link-active' : 'sidebar-link-inactive'} relative`
             }
             onClick={() => mobile && setIsSidebarOpen(false)}
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium whitespace-nowrap">{item.name}</span>
+            {item.badge && notifications.filter(n => n.type === 'info' && n.title === 'Novo Pedido de Aprovação' && !n.isRead).length > 0 && (
+              <span className="ml-auto bg-primary-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full ring-2 ring-primary-500/20">
+                {notifications.filter(n => n.type === 'info' && n.title === 'Novo Pedido de Aprovação' && !n.isRead).length}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -214,8 +214,16 @@ const Layout: React.FC = () => {
                 <p className="text-sm font-semibold text-white tracking-tight">{user?.name || 'Gestor'}</p>
                 <p className="text-xs text-slate-400 font-medium capitalize opacity-70 tracking-wide uppercase">{user?.role || 'Broker'}</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary-900/30 ring-2 ring-primary-500/20">
-                {user?.name?.[0] || 'A'}
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary-900/30 ring-2 ring-primary-500/20 overflow-hidden">
+                {user?.profileImage ? (
+                  <img 
+                    src={user.profileImage} 
+                    alt={user.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user?.name?.[0] || 'A'
+                )}
               </div>
             </div>
           </div>

@@ -114,7 +114,7 @@ const ClientPortal: React.FC = () => {
     <div className="w-full">
       <div className="mb-10">
         <h1 className="text-4xl font-bold text-white tracking-tight font-outfit mb-3">Olá, {user?.name} 👋</h1>
-        <p className="text-slate-400 font-medium text-lg">Bem-vindo ao seu portal de saúde particular.</p>
+        <p className="text-slate-400 font-medium text-lg">Bem-vindo ao seu portal de plano de saúde.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">

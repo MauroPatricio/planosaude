@@ -8,57 +8,64 @@ import {
   Dimensions,
   RefreshControl,
   StatusBar,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
-import { 
-  Shield, 
-  ChevronRight, 
-  CreditCard, 
-  Users, 
-  Activity,
-  Bell,
-  Clock,
-  CheckCircle,
-  HelpCircle
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/authStore';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { API_URL } from '../../src/config';
+import { API_URL, BASE_URL } from '../../src/config';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const { user, token } = useAuthStore();
+  const router = useRouter();
+  const { user, token, refreshUser } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activePlans: 0,
     dependents: 0,
     nextPayment: 'N/A',
-    score: 85
+    financialStatus: 'covered' as 'covered' | 'overdue'
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      // In a real device, replace with actual IP
-      const baseUrl = 'http://10.0.2.2:5000/api';
+      
+      // Sync user status first
+      await refreshUser();
       const [membersRes, invoicesRes] = await Promise.all([
-        axios.get(`${baseUrl}/clients/members`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${baseUrl}/payments`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/payments`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      const unpaidInvoices = invoicesRes.data.filter((i: any) => i.status !== 'paid');
-      const nextDue = unpaidInvoices.length > 0 ? new Date(unpaidInvoices[0].dueDate).toLocaleDateString() : 'Em dia';
+      const membersArray = Array.isArray(membersRes.data) ? membersRes.data : [];
+      const invoicesArray = Array.isArray(invoicesRes.data) ? invoicesRes.data : [];
+      
+      const unpaidInvoices = invoicesArray.filter((i: any) => i.status !== 'paid');
+      const nextDue = unpaidInvoices.length > 0 && unpaidInvoices[0]?.dueDate 
+        ? new Date(unpaidInvoices[0].dueDate).toLocaleDateString() 
+        : 'Em dia';
+
+      // Check if any invoice is actually overdue (dueDate < now)
+      const now = new Date();
+      const isOverdue = unpaidInvoices.some((inv: any) => {
+        if (!inv.dueDate) return false;
+        return new Date(inv.dueDate) < now;
+      });
 
       setStats({
         activePlans: 1, // Assuming the client has 1 main plan
-        dependents: membersRes.data.length,
+        dependents: membersArray.length,
         nextPayment: nextDue,
-        score: 92 // Logic for health score can be added later
+        financialStatus: isOverdue ? 'overdue' : 'covered'
       });
-    } catch (err) {
-      console.error('Erro ao carregar dados da home');
+    } catch (err: any) {
+      console.error('Erro ao carregar dados da home:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -67,6 +74,12 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  const getProfileImage = () => {
+    if (!user?.profileImage) return null;
+    if (user.profileImage.startsWith('http')) return user.profileImage;
+    return `${BASE_URL}${user.profileImage}`;
+  };
 
   return (
     <View style={styles.container}>
@@ -84,45 +97,118 @@ export default function HomeScreen() {
       >
         {/* Header Section */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Olá, {user?.name.split(' ')[0]} 👋</Text>
-            <Text style={styles.headerSubtitle}>Bem-vindo ao seu portal premium</Text>
+          <View style={styles.headerInfo}>
+            <View style={styles.avatarContainer}>
+              {user?.profileImage ? (
+                <Image source={{ uri: getProfileImage() || undefined }} style={styles.avatarImage} />
+              ) : (
+                <LinearGradient
+                  colors={['#60A5FA', '#3B82F6']}
+                  style={styles.avatarPlaceholder}
+                >
+                  <Text style={styles.avatarText}>{user?.name?.[0] || 'U'}</Text>
+                </LinearGradient>
+              )}
+            </View>
+            <View>
+              <Text style={styles.greeting}>Olá, {user?.name?.split(' ')[0] || 'Utilizador'} 👋</Text>
+              <Text style={styles.headerSubtitle}>Bem-vindo ao seu portal de plano de saúde.</Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.notificationBtn}>
-            <Bell size={22} color="#94a3b8" />
+            <Icons.Bell size={22} color="#94a3b8" />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
 
-        {/* Health Score Card */}
-        <LinearGradient
-          colors={['#3b82f6', '#2dd4bf']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.scoreCard}
-        >
-          <View style={styles.scoreInfo}>
-            <Text style={styles.scoreLabel}>Score de Saúde Financeira</Text>
-            <Text style={styles.scoreValue}>{stats.score}</Text>
-            <Text style={styles.scoreStatus}>EXCELENTE</Text>
+        {/* Status Banner for Pending/Suspended accounts */}
+        {user?.status !== 'active' && (
+          <LinearGradient
+            colors={user?.status === 'pending' ? ['#F59E0B', '#D97706'] : ['#EF4444', '#B91C1C']}
+            style={styles.statusBanner}
+          >
+            <View style={styles.statusBannerInner}>
+              <Icons.AlertTriangle size={20} color="#FFFFFF" />
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusBannerTitle}>
+                  {user?.status === 'pending' ? 'CONTA EM ANÁLISE' : 'CONTA SUSPENSA'}
+                </Text>
+                <Text style={styles.statusBannerDesc}>
+                  {user?.status === 'pending' 
+                    ? 'Aguarde a validação dos seus documentos pela nossa equipa.' 
+                    : 'A sua conta foi suspensa. Por favor, contacte o suporte.'}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        )}
+
+        {/* Financial Situation Card (Only if active) */}
+        {user?.status === 'active' ? (
+          <TouchableOpacity 
+            onPress={() => router.push('/(tabs)/payments')}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={stats.financialStatus === 'covered' ? ['#10b981', '#059669'] : ['#ef4444', '#b91c1c']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.scoreCard}
+            >
+              <View style={styles.scoreInfo}>
+                <View style={styles.scoreHeaderRow}>
+                  <Text style={styles.scoreLabel}>Situação Financeira</Text>
+                  {stats.financialStatus === 'covered' ? (
+                    <Icons.CheckCircle size={16} color="rgba(255,255,255,0.8)" />
+                  ) : (
+                    <Icons.AlertTriangle size={16} color="rgba(255,255,255,0.8)" />
+                  )}
+                </View>
+                
+                <Text style={styles.scoreStatus}>
+                  {stats.financialStatus === 'covered' ? 'EM DIA / COBERTO' : 'PAGAMENTO EM ATRASO'}
+                </Text>
+
+                {stats.financialStatus === 'overdue' && (
+                  <View style={styles.suggestionContainer}>
+                    <Text style={styles.suggestionText}>
+                      Regularize o pagamento para manter o acesso aos serviços.
+                    </Text>
+                    <View style={styles.payNowBadge}>
+                      <Text style={styles.payNowText}>Pagar Agora</Text>
+                      <Icons.ChevronRight size={10} color="#FFFFFF" />
+                    </View>
+                  </View>
+                )}
+              </View>
+              <View style={styles.scoreProgressContainer}>
+                 {stats.financialStatus === 'covered' ? (
+                    <Icons.ShieldCheck size={48} color="rgba(255,255,255,0.3)" />
+                 ) : (
+                    <Icons.Wallet size={48} color="rgba(255,255,255,0.3)" />
+                 )}
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.pendingScoreCard}>
+            <Icons.Lock size={24} color="#475569" />
+            <Text style={styles.pendingScoreText}>Funcionalidades limitadas até à ativação da conta</Text>
           </View>
-          <View style={styles.scoreProgressContainer}>
-             <Activity size={48} color="rgba(255,255,255,0.3)" />
-          </View>
-        </LinearGradient>
+        )}
 
         {/* Quick Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
             <View style={[styles.statIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-              <Shield size={20} color="#60A5FA" />
+              <Icons.Shield size={20} color="#60A5FA" />
             </View>
             <Text style={styles.statValue}>{stats.activePlans}</Text>
             <Text style={styles.statLabel}>Planos Ativos</Text>
           </View>
           <View style={styles.statBox}>
             <View style={[styles.statIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Users size={20} color="#34d399" />
+              <Icons.Users size={20} color="#34d399" />
             </View>
             <Text style={styles.statValue}>{stats.dependents}</Text>
             <Text style={styles.statLabel}>Dependentes</Text>
@@ -133,42 +219,37 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.paymentCard} activeOpacity={0.9}>
           <View style={styles.paymentInfo}>
             <View style={styles.paymentIconWrapper}>
-              <CreditCard size={24} color="#F59E0B" />
+              <Icons.CreditCard size={24} color="#F59E0B" />
             </View>
             <View>
               <Text style={styles.paymentTitle}>Próximo Vencimento</Text>
               <Text style={styles.paymentDate}>{stats.nextPayment}</Text>
             </View>
           </View>
-          <ChevronRight size={20} color="#475569" />
+          <Icons.ChevronRight size={20} color="#475569" />
         </TouchableOpacity>
 
-        {/* Important Alerts */}
-        <Text style={styles.sectionTitle}>Alertas da Corretora</Text>
-        
-        <View style={styles.alertItem}>
-          <View style={styles.alertIconBlue}>
-            <Clock size={18} color="#60A5FA" />
-          </View>
-          <View style={styles.alertTextContent}>
-            <Text style={styles.alertTitle}>Submissão em Análise</Text>
-            <Text style={styles.alertDesc}>O pedido de inclusão do dependente "João" está a ser revisto.</Text>
-          </View>
-        </View>
-
-        <View style={styles.alertItem}>
-          <View style={styles.alertIconGreen}>
-            <CheckCircle size={18} color="#34d399" />
-          </View>
-          <View style={styles.alertTextContent}>
-            <Text style={styles.alertTitle}>Pagamento Confirmado</Text>
-            <Text style={styles.alertDesc}>Recebemos com sucesso o seu pagamento de Março.</Text>
-          </View>
-        </View>
-
         {/* Support Section */}
-        <TouchableOpacity style={styles.supportCard}>
-          <HelpCircle size={20} color="#FFFFFF" />
+        <TouchableOpacity 
+          style={styles.supportCard} 
+          activeOpacity={0.8}
+          onPress={() => {
+            const phoneNumber = '+258840000000'; // Real support number would go here
+            const message = 'Olá! Preciso de ajuda com o meu plano de saúde.';
+            const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+            
+            import('react-native').then(({ Linking }) => {
+              Linking.canOpenURL(url).then(supported => {
+                if (supported) {
+                  Linking.openURL(url);
+                } else {
+                  Linking.openURL(`https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`);
+                }
+              });
+            });
+          }}
+        >
+          <Icons.HelpCircle size={20} color="#FFFFFF" />
           <Text style={styles.supportText}>Precisa de ajuda? Fale com suporte</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -190,6 +271,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 32,
+  },
+  headerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   greeting: {
     fontSize: 24,
@@ -249,10 +358,45 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+  },
+  scoreHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  suggestionContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    gap: 12,
+  },
+  suggestionText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  payNowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  payNowText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   scoreValue: {
     color: '#FFFFFF',
@@ -269,6 +413,54 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
+  },
+  statusBanner: {
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statusBannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusTextContainer: {
+    flex: 1,
+  },
+  statusBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  statusBannerDesc: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  pendingScoreCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderStyle: 'dashed',
+  },
+  pendingScoreText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -336,54 +528,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
-    marginTop: 2,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 16,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  },
-  alertItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: 'rgba(30, 41, 59, 0.3)',
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
-  },
-  alertIconBlue: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertIconGreen: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertTextContent: {
-    flex: 1,
-  },
-  alertTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  alertDesc: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: 18,
     marginTop: 2,
   },
   supportCard: {

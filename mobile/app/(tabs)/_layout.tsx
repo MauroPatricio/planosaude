@@ -5,13 +5,15 @@ import {
   Home, HeartPulse, CreditCard, MapPin 
 } from 'lucide-react-native';
 import { useAuthStore } from '../../src/store/authStore';
+import { SocketProvider } from '../../src/context/SocketContext';
 
 export default function TabLayout() {
   const user = useAuthStore((state: any) => state.user);
   const isBroker = user?.role === 'broker' || user?.role === 'admin' || user?.role === 'superAdmin';
 
   return (
-    <Tabs
+    <SocketProvider>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -68,13 +70,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="clinics"
         options={{
-          href: !isBroker ? '/clinics' : null,
+          href: null,
           title: 'Unidades',
           tabBarIcon: ({ color }: any) => <MapPin size={22} color={color} />,
         }}
       />
 
-      {/* BROKER SPECIFIC TABS */}
+      {/* BROKER SPECIFIC TABS - COMMENTED OUT AS THEY DO NOT EXIST YET
       <Tabs.Screen
         name="clients"
         options={{
@@ -91,6 +93,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }: any) => <Briefcase size={22} color={color} />,
         }}
       />
+      */}
 
       {/* SHARED PROFILE TAB */}
       <Tabs.Screen
@@ -101,5 +104,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </SocketProvider>
   );
 }

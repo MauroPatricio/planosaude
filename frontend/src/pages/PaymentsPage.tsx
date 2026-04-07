@@ -26,9 +26,10 @@ interface PaymentSummary {
     _id: string;
     invoiceNumber: string;
     amount: number;
-    status: 'open' | 'pending' | 'paid' | 'overdue' | 'cancelled';
+    status: 'open' | 'pending' | 'paid' | 'overdue' | 'cancelled' | 'rejected';
     dueDate: string;
     notes?: string;
+    rejectionReason?: string;
     paymentMethod?: string;
   } | null;
   invoiceCount: number;
@@ -38,7 +39,7 @@ const PaymentsPage: React.FC = () => {
   const { token } = useAuthStore();
   const [summaries, setSummaries] = useState<PaymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'paid' | 'rejected'>('all');
   const [expandedInv, setExpandedInv] = useState<string | null>(null);
 
   const handleExportExcel = () => {
@@ -84,12 +85,20 @@ const PaymentsPage: React.FC = () => {
     fetchSummaries();
   }, [token]);
 
-  const handleValidate = async (id: string, status: 'paid' | 'cancelled') => {
-    const notes = window.prompt('Notas adicionais (opcional):');
-    if (notes === null) return;
+  const handleValidate = async (id: string, status: 'paid' | 'rejected' | 'cancelled') => {
+    let rejectionReason = '';
+    let notes = '';
+
+    if (status === 'rejected') {
+      rejectionReason = window.prompt('Motivo da rejeição:') || '';
+      if (!rejectionReason) return;
+    } else {
+      notes = window.prompt('Notas adicionais (opcional):') || '';
+      if (notes === null) return;
+    }
 
     try {
-      await axios.put(`/api/payments/${id}/validate`, { status, notes }, {
+      await axios.put(`/api/payments/${id}/validate`, { status, rejectionReason, notes }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSummaries();
@@ -191,13 +200,13 @@ const PaymentsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap gap-4 mb-8 border-b border-white/5 pb-2">
-        {(['all', 'pending', 'overdue', 'paid'] as const).map((f) => (
+        {(['all', 'pending', 'overdue', 'paid', 'rejected'] as const).map((f) => (
           <button 
             key={f}
             onClick={() => setFilter(f)}
             className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest transition-all ${filter === f ? 'text-primary-400 border-b-2 border-primary-400' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendente' : f === 'overdue' ? 'Atraso' : 'Pagas'}
+            {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendente' : f === 'overdue' ? 'Atraso' : f === 'paid' ? 'Pagas' : 'Rejeitadas'}
           </button>
         ))}
       </div>
@@ -273,14 +282,15 @@ const PaymentsPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                       <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                         s.latestInvoice?.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
-                         s.latestInvoice?.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
-                         s.latestInvoice?.status === 'overdue' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                         'bg-slate-800 text-slate-500 border-slate-700/50'
-                       }`}>
-                         {s.latestInvoice?.status.replace('_', ' ') || 'S/ FATURA'}
-                       </span>
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                          s.latestInvoice?.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                          s.latestInvoice?.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
+                          s.latestInvoice?.status === 'overdue' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                          s.latestInvoice?.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                          'bg-slate-800 text-slate-500 border-slate-700/50'
+                        }`}>
+                          {s.latestInvoice?.status.replace('_', ' ') || 'S/ FATURA'}
+                        </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -294,13 +304,24 @@ const PaymentsPage: React.FC = () => {
                           </button>
                         )}
                         {s.latestInvoice && s.latestInvoice.status !== 'paid' && s.latestInvoice.status !== 'cancelled' && (
-                          <button 
-                            onClick={() => handleValidate(s.latestInvoice!._id, 'paid')}
-                            className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors border border-transparent hover:border-emerald-500/20"
-                            title="Validar Pagamento"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handleValidate(s.latestInvoice!._id, 'paid')}
+                              className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors border border-transparent hover:border-emerald-500/20"
+                              title="Validar Pagamento"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            {s.latestInvoice.status === 'pending' && (
+                              <button 
+                                onClick={() => handleValidate(s.latestInvoice!._id, 'rejected')}
+                                className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-500/20"
+                                title="Rejeitar Comprovativo"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         )}
                         {s.latestInvoice?.status === 'paid' && (
                           <div className="text-emerald-500/40 p-1.5" title="Liquidado">
@@ -329,10 +350,10 @@ const PaymentsPage: React.FC = () => {
                                     <p className="text-xs font-black text-white uppercase">{new Date(s.latestInvoice.dueDate).toLocaleDateString()}</p>
                                  </div>
                               </div>
-                              {s.latestInvoice.notes && (
-                                <div className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
-                                   <p className="text-[9px] text-slate-600 font-bold uppercase mb-1">Observações</p>
-                                   <p className="text-xs text-slate-400 italic font-medium leading-relaxed">"{s.latestInvoice.notes}"</p>
+                              {s.latestInvoice.rejectionReason && (
+                                <div className="bg-rose-900/20 p-3 rounded-xl border border-rose-500/20 mt-3">
+                                   <p className="text-[9px] text-rose-400 font-bold uppercase mb-1">Motivo da Rejeição</p>
+                                   <p className="text-xs text-rose-300 font-medium leading-relaxed">{s.latestInvoice.rejectionReason}</p>
                                 </div>
                               )}
                           </div>

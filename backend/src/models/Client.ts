@@ -6,7 +6,8 @@ export interface IClient extends Document {
   phone: string;
   documentId: string; // NUIT or BI
   address: string;
-  status: 'active' | 'inactive' | 'lead';
+  status: 'active' | 'inactive' | 'lead' | 'pending' | 'suspended' | 'pending_correction' | 'rejected';
+  rejectionReason?: string;
   history: {
     date: Date;
     action: string;
@@ -31,7 +32,8 @@ const ClientSchema: Schema = new Schema({
   phone: { type: String, required: true },
   documentId: { type: String, required: true },
   address: { type: String },
-  status: { type: String, enum: ['active', 'inactive', 'lead'], default: 'lead' },
+  status: { type: String, enum: ['active', 'inactive', 'lead', 'pending', 'suspended', 'pending_correction', 'rejected'], default: 'lead' },
+  rejectionReason: { type: String },
   history: [{
     date: { type: Date, default: Date.now },
     action: { type: String, required: true },

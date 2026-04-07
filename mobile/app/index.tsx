@@ -11,7 +11,8 @@ import {
   StatusBar,
   Dimensions
 } from 'react-native';
-import { Shield, Lock, Mail, ChevronRight, AlertCircle, UserPlus, Eye, EyeOff } from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { useAuthStore } from '../src/store/authStore';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -58,7 +59,10 @@ export default function LoginScreen() {
         console.error('Erro ao registar notificações:', pushErr);
       }
 
-      const destination = userData.role === 'client' ? '/(tabs)/home' : '/(tabs)/dashboard';
+      const destination = userData.status === 'active' 
+        ? (userData.role === 'client' ? '/(tabs)/home' : '/(tabs)/dashboard')
+        : '/pending-auth';
+        
       router.replace(destination as any);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao realizar login. Verifique sua conexão.');
@@ -90,15 +94,15 @@ export default function LoginScreen() {
             colors={['rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.05)']}
             style={styles.logoContainer}
           >
-            <Shield size={38} color="#60A5FA" />
+            <Icons.Shield size={38} color="#60A5FA" />
           </LinearGradient>
-          <Text style={styles.title}>PlanoSaude</Text>
+          <Text style={styles.title}>PlanoSaude360</Text>
           <Text style={styles.subtitle}>Gestão Inteligente de Corretagem</Text>
         </View>
 
         {error ? (
           <View style={styles.errorContainer}>
-            <AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
+            <Icons.AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
@@ -107,7 +111,7 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>EMAIL PROFISSIONAL</Text>
             <View style={styles.inputWrapper}>
-              <Mail size={18} color="#64748b" style={styles.inputIcon} />
+              <Icons.Mail size={18} color="#64748b" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="seuemail@gmail.com"
@@ -123,7 +127,7 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>PALAVRA-PASSE</Text>
             <View style={styles.inputWrapper}>
-              <Lock size={18} color="#64748b" style={styles.inputIcon} />
+              <Icons.Lock size={18} color="#64748b" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
@@ -137,9 +141,9 @@ export default function LoginScreen() {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color="#64748b" />
+                  <Icons.EyeOff size={20} color="#64748b" />
                 ) : (
-                  <Eye size={20} color="#64748b" />
+                  <Icons.Eye size={20} color="#64748b" />
                 )}
               </TouchableOpacity>
             </View>
@@ -161,22 +165,32 @@ export default function LoginScreen() {
               ) : (
                 <View style={styles.buttonInner}>
                   <Text style={styles.buttonText}>Entrar no Sistema</Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
+                  <Icons.ChevronRight size={20} color="#FFFFFF" />
                 </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity 
+            activeOpacity={0.7}
             style={styles.registerButton}
-            onPress={() => router.push('/register')}
+            onPress={() => router.push('/register-client')}
           >
-            <View style={styles.registerButtonInner}>
-              <UserPlus size={16} color="#60A5FA" />
-              <Text style={styles.registerText}>
-                Não tem conta? <Text style={styles.registerTextBold}>Criar conta para sua empresa</Text>
-              </Text>
-            </View>
+            <LinearGradient
+              colors={['rgba(30, 41, 59, 0.4)', 'rgba(30, 41, 59, 0.1)']}
+              style={styles.registerButtonGradient}
+            >
+              <View style={styles.registerButtonInner}>
+                <View style={styles.registerIconContainer}>
+                   <Icons.UserPlus size={18} color="#60A5FA" />
+                </View>
+                <View style={styles.registerTextContainer}>
+                  <Text style={styles.registerTextTitle}>Novo no PlanoSaude360?</Text>
+                  <Text style={styles.registerTextSub}>Crie a sua conta de cliente agora</Text>
+                </View>
+                <Icons.ChevronRight size={18} color="#475569" />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -349,22 +363,39 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   registerButton: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingVertical: 10,
+    marginTop: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  registerButtonGradient: {
+    padding: 16,
   },
   registerButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 16,
   },
-  registerText: {
+  registerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  registerTextContainer: {
+    flex: 1,
+  },
+  registerTextTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  registerTextSub: {
     color: '#64748b',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  registerTextBold: {
-    color: '#60A5FA',
-    fontWeight: '800',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

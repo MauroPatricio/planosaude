@@ -55,22 +55,28 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
+export const submitPaymentProof = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { paymentMethod, paymentProofUrl } = req.body;
+    const { paymentMethod } = req.body;
+    let paymentProofUrl = req.body.paymentProofUrl;
+
+    // Check if a file was uploaded via multer
+    if (req.file) {
+      paymentProofUrl = `/uploads/${req.file.filename}`;
+    }
 
     const invoice = await Invoice.findOne({ _id: id, tenant: req.tenantId });
     if (!invoice) return res.status(404).json({ message: 'Fatura não encontrada' });
 
     invoice.status = 'pending'; // Status changes to pending validation
-    invoice.paymentMethod = paymentMethod;
+    invoice.paymentMethod = paymentMethod || 'bank_transfer';
     invoice.paymentProofUrl = paymentProofUrl;
     
     await invoice.save();
 
     // Notify Admins
-    const admins = await User.find({ tenant: req.tenantId, role: { $in: ['admin', 'manager'] } });
+    const admins = await User.find({ tenant: req.tenantId, role: { $in: ['admin', 'manager', 'broker'] } });
     for (const admin of admins) {
       await sendNotification({
         tenantId: req.tenantId as string,
@@ -92,15 +98,27 @@ export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
 export const validatePayment = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body; // 'paid' or 'cancelled' or back to 'open'
+    const { status, rejectionReason, notes } = req.body; // 'paid' or 'rejected' or 'open'
 
     const invoice = await Invoice.findOne({ _id: id, tenant: req.tenantId });
     if (!invoice) return res.status(404).json({ message: 'Fatura não encontrada' });
 
     invoice.status = status;
+    invoice.validationDate = new Date();
+    
     if (status === 'paid') {
       invoice.paidAt = new Date();
+      
+      // If payment is for a subscription, activate it if it was pending
+      if (invoice.subscription) {
+        await Subscription.findByIdAndUpdate(invoice.subscription, { status: 'active' });
+      }
     }
+    
+    if (status === 'rejected') {
+      invoice.rejectionReason = rejectionReason;
+    }
+    
     if (notes) invoice.notes = notes;
 
     await invoice.save();
@@ -108,12 +126,19 @@ export const validatePayment = async (req: AuthRequest, res: Response) => {
     // Notify Client
     const clientUser = await User.findOne({ clientId: invoice.client });
     if (clientUser) {
+      const isSuccess = status === 'paid';
+      const isRejected = status === 'rejected';
+      
       await sendNotification({
         tenantId: req.tenantId as string,
         recipientId: (clientUser._id as any).toString(),
-        type: status === 'paid' ? 'success' : 'warning',
-        title: `Pagamento ${status === 'paid' ? 'Confirmado' : 'Atualizado'}`,
-        message: `O seu pagamento para a fatura ${invoice.invoiceNumber} foi ${status === 'paid' ? 'confirmado com sucesso' : 'atualizado'}.`,
+        type: isSuccess ? 'success' : isRejected ? 'error' : 'warning',
+        title: `Pagamento ${isSuccess ? 'Confirmado' : isRejected ? 'Rejeitado' : 'Atualizado'}`,
+        message: isSuccess 
+          ? `O seu pagamento para a fatura ${invoice.invoiceNumber} foi confirmado com sucesso.` 
+          : isRejected 
+          ? `O seu comprovativo foi rejeitado: ${rejectionReason || 'Dados inválidos'}.`
+          : `O estado da sua fatura ${invoice.invoiceNumber} foi atualizado para ${status}.`,
         link: '/portal'
       });
     }
@@ -275,5 +300,45 @@ export const getClientPaymentStatus = async (req: AuthRequest, res: Response) =>
   } catch (error: any) {
     logger.error(`Get Payment Status Error: ${error.message}`);
     res.status(500).json({ message: 'Erro ao carregar sumário de pagamentos' });
+  }
+};
+
+export const simulateMpesaPayment = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { phoneNumber } = req.body;
+
+    const invoice = await Invoice.findOne({ _id: id, tenant: req.tenantId });
+    if (!invoice) return res.status(404).json({ message: 'Fatura não encontrada' });
+
+    // In a real scenario, we would call the M-PESA API here.
+    // For MVP, we simulate a successful transaction after a brief verification.
+    invoice.status = 'paid';
+    invoice.paymentMethod = 'm-pesa';
+    invoice.paidAt = new Date();
+    invoice.notes = `Pago via M-PESA (${phoneNumber})`;
+    
+    await invoice.save();
+
+    // Notify Admins about the automated payment
+    const admins = await User.find({ tenant: req.tenantId, role: { $in: ['admin', 'manager'] } });
+    for (const admin of admins) {
+      await sendNotification({
+        tenantId: req.tenantId as string,
+        recipientId: (admin._id as any).toString(),
+        type: 'success',
+        title: 'Pagamento Recebido (M-PESA)',
+        message: `Recebido pagamento automático da fatura ${invoice.invoiceNumber}.`,
+        link: '/payments'
+      });
+    }
+
+    res.json({
+      message: 'Pagamento M-PESA processado com sucesso',
+      invoice
+    });
+  } catch (error: any) {
+    logger.error(`M-PESA Simulation Error: ${error.message}`);
+    res.status(500).json({ message: 'Erro ao processar pagamento M-PESA' });
   }
 };

@@ -11,6 +11,11 @@ export interface IUser extends Document {
   profileImage?: string;
   pushTokens?: string[];
   clientId?: mongoose.Types.ObjectId;
+  status: 'pending' | 'active' | 'suspended' | 'pending_correction' | 'rejected';
+  address?: string;
+  documentType?: 'BI' | 'Passaporte';
+  documentNumber?: string;
+  planType?: 'particular' | 'institucional';
   comparePassword(password: string): Promise<boolean>;
 }
 
@@ -23,7 +28,12 @@ const UserSchema: Schema = new Schema({
   isActive: { type: Boolean, default: true },
   profileImage: { type: String },
   pushTokens: [{ type: String }],
-  clientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true }
+  clientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  status: { type: String, enum: ['pending', 'active', 'suspended', 'pending_correction', 'rejected'], default: 'pending' },
+  address: { type: String },
+  documentType: { type: String, enum: ['BI', 'Passaporte'] },
+  documentNumber: { type: String },
+  planType: { type: String, enum: ['particular', 'institucional'] }
 }, {
   timestamps: true
 });

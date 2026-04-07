@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Users, Plus, Search, Filter, MoreVertical, 
   Mail, Shield, CheckCircle, Clock, X, Lock
@@ -36,12 +36,10 @@ const TeamPage: React.FC = () => {
 
   const fetchMembers = async () => {
     try {
-      const { data } = await axios.get('/api/users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/users');
       setMembers(data);
     } catch (err) {
-      console.error('Erro ao procurar membros da equipa');
+      console.error('Erro ao procurar membros da equipa:', err);
     } finally {
       setLoading(false);
     }
@@ -54,9 +52,7 @@ const TeamPage: React.FC = () => {
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/api/users', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/users', formData);
       setShowAddModal(false);
       setFormData({ name: '', email: '', password: '', role: 'broker' });
       fetchMembers();
@@ -67,12 +63,10 @@ const TeamPage: React.FC = () => {
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      await axios.put(`/api/users/${id}/role`, { isActive: !currentStatus }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/users/${id}/role`, { isActive: !currentStatus });
       fetchMembers();
     } catch (err) {
-      console.error('Erro ao alternar status do membro');
+      console.error('Erro ao alternar status do membro:', err);
     }
   };
 

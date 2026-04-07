@@ -36,7 +36,30 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
   };
 
-  const handleNotificationClick = (notif: Notification) => {
+  const formatNotificationDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+
+    if (diffMins < 1) return 'Agora mesmo';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) return `Hoje às ${timeStr}`;
+    if (isYesterday) return `Ontem às ${timeStr}`;
+
+    return `${date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} às ${timeStr}`;
+  };
+
+  const handleNotificationClick = (notif: any) => {
     if (!notif.isRead) onMarkRead(notif._id);
     if (notif.link) {
       navigate(notif.link);
@@ -87,8 +110,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     <p className={`text-xs font-bold leading-none ${!notif.isRead ? 'text-white' : 'text-slate-400'}`}>
                       {notif.title}
                     </p>
-                    <span className="text-[9px] text-slate-500 font-medium">
-                      {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span className="text-[10px] text-primary-400 font-bold whitespace-nowrap">
+                      {formatNotificationDate((notif as any).updatedAt || notif.createdAt)}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 mb-2">

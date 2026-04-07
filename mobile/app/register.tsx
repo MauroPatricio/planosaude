@@ -12,11 +12,8 @@ import {
   Dimensions,
   ScrollView
 } from 'react-native';
-import { 
-  Building2, Lock, Mail, User, ChevronRight, 
-  AlertCircle, Briefcase, Globe, Phone, CheckCircle2,
-  ArrowLeft
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -68,8 +65,7 @@ export default function RegisterScreen() {
 
     try {
       // Use 10.0.2.2 for Android Emulator, localhost for iOS
-      const baseUrl = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
-      await axios.post(`${baseUrl}/api/auth/register-tenant`, formData);
+      await axios.post(`${API_URL}/auth/register-tenant`, formData);
       setIsSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar conta. Tente novamente.');
@@ -101,14 +97,14 @@ export default function RegisterScreen() {
             style={styles.backButton}
             onPress={() => step === 2 ? setStep(1) : router.back()}
           >
-            <ArrowLeft size={24} color="#64748b" />
+            <Icons.ArrowLeft size={24} color="#64748b" />
           </TouchableOpacity>
 
           <View style={styles.logoContainer}>
             {step === 1 ? (
-              <Building2 size={32} color="#60A5FA" />
+              <Icons.Building2 size={32} color="#60A5FA" />
             ) : (
-              <User size={32} color="#60A5FA" />
+              <Icons.User size={32} color="#60A5FA" />
             )}
           </View>
           <Text style={styles.title}>
@@ -126,7 +122,7 @@ export default function RegisterScreen() {
               style={styles.successCard}
             >
               <View style={styles.successIconContainer}>
-                <CheckCircle2 size={50} color="#10B981" />
+                <Icons.CheckCircle2 size={50} color="#10B981" />
               </View>
               <Text style={styles.successTitle}>Conta Criada!</Text>
               <Text style={styles.successSubtitle}>
@@ -146,7 +142,7 @@ export default function RegisterScreen() {
                 >
                   <View style={styles.buttonInner}>
                     <Text style={styles.buttonText}>Fazer Login</Text>
-                    <ChevronRight size={20} color="#FFFFFF" />
+                    <Icons.ChevronRight size={20} color="#FFFFFF" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -161,7 +157,7 @@ export default function RegisterScreen() {
 
             {error ? (
               <View style={styles.errorContainer}>
-                <AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
+                <Icons.AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
@@ -172,7 +168,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>NOME DA EMPRESA</Text>
                     <View style={styles.inputWrapper}>
-                      <Building2 size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Building2 size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Nome da organização"
@@ -186,7 +182,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>TIPO DE NEGÓCIO</Text>
                     <View style={styles.inputWrapper}>
-                      <Briefcase size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Briefcase size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Ex: Corretora, Clínica"
@@ -200,7 +196,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>EMAIL INSTITUCIONAL</Text>
                     <View style={styles.inputWrapper}>
-                      <Mail size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Mail size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="geral@empresa.com"
@@ -216,7 +212,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>CONTACTO TELEFÓNICO</Text>
                     <View style={styles.inputWrapper}>
-                      <Phone size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Phone size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="+258 ..."
@@ -241,7 +237,7 @@ export default function RegisterScreen() {
                     >
                       <View style={styles.buttonInner}>
                         <Text style={styles.buttonText}>Próximo Passo</Text>
-                        <ChevronRight size={20} color="#FFFFFF" />
+                        <Icons.ChevronRight size={20} color="#FFFFFF" />
                       </View>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -251,7 +247,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>NOME DO ADMINISTRADOR</Text>
                     <View style={styles.inputWrapper}>
-                      <User size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.User size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Seu nome completo"
@@ -265,7 +261,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>EMAIL DE ACESSO</Text>
                     <View style={styles.inputWrapper}>
-                      <Mail size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Mail size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="admin@empresa.com"
@@ -281,7 +277,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>PALAVRA-PASSE</Text>
                     <View style={styles.inputWrapper}>
-                      <Lock size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.Lock size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -296,7 +292,7 @@ export default function RegisterScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>CONFIRMAR PALAVRA-PASSE</Text>
                     <View style={styles.inputWrapper}>
-                      <CheckCircle2 size={18} color="#64748b" style={styles.inputIcon} />
+                      <Icons.CheckCircle2 size={18} color="#64748b" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -325,7 +321,7 @@ export default function RegisterScreen() {
                       ) : (
                         <View style={styles.buttonInner}>
                           <Text style={styles.buttonText}>Finalizar Registro</Text>
-                          <ChevronRight size={20} color="#FFFFFF" />
+                          <Icons.ChevronRight size={20} color="#FFFFFF" />
                         </View>
                       )}
                     </LinearGradient>

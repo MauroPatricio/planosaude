@@ -6,17 +6,11 @@ import {
   StyleSheet, 
   TouchableOpacity,
   SafeAreaView,
-  RefreshControl
+  RefreshControl,
+  ActivityIndicator
 } from 'react-native';
-import { 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Briefcase, 
-  Search, 
-  Bell,
-  ChevronRight
-} from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
+const Icons = LucideIcons as any;
 import { useAuthStore } from '../../src/store/authStore';
 import axios from 'axios';
 import { API_URL } from '../../src/config';
@@ -40,7 +34,9 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
 
 export default function DashboardScreen() {
   const { user, token } = useAuthStore();
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalSales: 0,
     totalClients: 0,
@@ -48,14 +44,22 @@ export default function DashboardScreen() {
     salesProcessed: 0
   });
 
-  const fetchStats = async () => {
+  const fetchStats = async (isRefreshing = false) => {
     try {
+      if (isRefreshing) setRefreshing(true);
+      else setLoading(true);
+      
+      setError(null);
       const { data } = await axios.get(`${API_URL}/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(data);
     } catch (err) {
       console.error('Erro ao procurar estatísticas');
+      setError('Não foi possível carregar as estatísticas.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -64,8 +68,7 @@ export default function DashboardScreen() {
   }, []);
 
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    fetchStats().then(() => setRefreshing(false));
+    fetchStats(true);
   }, []);
 
   return (
@@ -83,41 +86,57 @@ export default function DashboardScreen() {
             <Text style={styles.titleText}>Resumo de Hoje</Text>
           </View>
           <TouchableOpacity style={styles.notificationBtn}>
-            <Bell size={24} color="#FFFFFF" />
+            <Icons.Bell size={24} color="#FFFFFF" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Icons.AlertCircle size={18} color="#F87171" style={styles.errorIcon} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={() => fetchStats()}>
+              <Text style={styles.retryText}>Tentar de novo</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {loading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Carregando dados...</Text>
+          </View>
+        ) : (
+          <View style={styles.statsGrid}>
           <StatCard 
             title="Vendas Totais" 
             value={`${stats.totalSales.toLocaleString()} MT`} 
-            icon={TrendingUp} 
+            icon={Icons.TrendingUp} 
             trend="+12%" 
             color="#3B82F6" 
           />
           <StatCard 
             title="Novos Clientes" 
             value={stats.totalClients} 
-            icon={Users} 
+            icon={Icons.Users} 
             trend="+3%" 
             color="#8B5CF6" 
           />
           <StatCard 
             title="Comissões" 
             value={`${stats.pendingCommissions.toLocaleString()} MT`} 
-            icon={DollarSign} 
+            icon={Icons.DollarSign} 
             color="#10B981" 
           />
           <StatCard 
             title="Emitidas" 
             value={stats.salesProcessed} 
-            icon={Briefcase} 
+            icon={Icons.Briefcase} 
             trend="+18%" 
             color="#F59E0B" 
           />
-        </View>
+          </View>
+        )}
 
         {/* Recent Actions Placeholder */}
         <View style={styles.sectionHeader}>
@@ -130,24 +149,24 @@ export default function DashboardScreen() {
         <View style={styles.recentList}>
           <TouchableOpacity style={styles.recentItem}>
             <View style={[styles.itemIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-              <Search size={18} color="#3B82F6" />
+              <Icons.Search size={18} color="#3B82F6" />
             </View>
             <View style={styles.itemContent}>
               <Text style={styles.itemName}>Nova Proposta Emitida</Text>
               <Text style={styles.itemDate}>Há 2 horas • Plano Plátino</Text>
             </View>
-            <ChevronRight size={18} color="#4B5563" />
+            <Icons.ChevronRight size={18} color="#4B5563" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.recentItem}>
             <View style={[styles.itemIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Users size={18} color="#10B981" />
+              <Icons.Users size={18} color="#10B981" />
             </View>
             <View style={styles.itemContent}>
               <Text style={styles.itemName}>Novo Lead Registado</Text>
               <Text style={styles.itemDate}>Há 5 horas • Maria Silva</Text>
             </View>
-            <ChevronRight size={18} color="#4B5563" />
+            <Icons.ChevronRight size={18} color="#4B5563" />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -299,5 +318,42 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 12,
     marginTop: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 12,
+  },
+  errorIcon: {
+    marginRight: 0,
+  },
+  errorText: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  retryText: {
+    color: '#3B82F6',
+    fontSize: 13,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   }
 });

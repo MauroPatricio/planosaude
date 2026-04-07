@@ -5,16 +5,19 @@ import {
   validatePayment, 
   generateMonthlyInvoices,
   createInvoice,
-  getClientPaymentStatus
+  getClientPaymentStatus,
+  simulateMpesaPayment
 } from '../controllers/paymentController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
+import { uploadMiddleware } from '../middlewares/uploadMiddleware.js';
 
 const router = express.Router();
 
-router.get('/summary-b2b', (req, res, next) => { console.log('HIT: /api/payments/summary-b2b'); next(); }, protect, authorize('admin', 'manager', 'broker'), getClientPaymentStatus);
+router.get('/summary-b2b', protect, authorize('admin', 'manager', 'broker'), getClientPaymentStatus);
 router.get('/', protect, getInvoices);
 router.post('/', protect, authorize('admin', 'manager'), createInvoice);
-router.put('/:id/proof', protect, submitPaymentProof);
+router.patch('/:id/proof', protect, uploadMiddleware.single('proof'), submitPaymentProof);
+router.post('/:id/simulate-mpesa', protect, simulateMpesaPayment);
 router.put('/:id/validate', protect, authorize('admin', 'manager', 'broker'), validatePayment);
 router.post('/generate-monthly', protect, authorize('admin', 'manager'), generateMonthlyInvoices);
 

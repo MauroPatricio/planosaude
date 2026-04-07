@@ -9,6 +9,10 @@ export interface IHealthPlan extends Document {
   commissionRate?: number; // percentage e.g. 10 for 10%
   commissionFixed?: number; // fixed amount e.g. 500 MT
   benefits: string[];
+  description?: string;
+  coberturas?: string[];
+  limites?: string[];
+  parceiros?: string[];
   isActive: boolean;
   tenant: mongoose.Types.ObjectId;
 }
@@ -22,6 +26,10 @@ const HealthPlanSchema: Schema = new Schema({
   commissionRate: { type: Number, default: 0 },
   commissionFixed: { type: Number, default: 0 },
   benefits: [{ type: String }],
+  description: { type: String },
+  coberturas: [{ type: String }],
+  limites: [{ type: String }],
+  parceiros: [{ type: String }],
   isActive: { type: Boolean, default: true },
   tenant: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true }
 }, {

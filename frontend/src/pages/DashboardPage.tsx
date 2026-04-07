@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -71,16 +71,14 @@ const DashboardPage: React.FC = () => {
         institutionId: filters.institutionId 
       };
       
-      const config = { headers: { Authorization: `Bearer ${token}` }, params };
-      
       const [statsRes, chartsRes, b2bRes, activitiesRes, intelRes, brokersRes, instsRes] = await Promise.all([
-        axios.get('/api/dashboard/stats', config),
-        axios.get('/api/dashboard/charts', config),
-        axios.get('/api/institutions/stats/global', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/dashboard/activities', config),
-        axios.get('/api/dashboard/intelligent', config),
-        axios.get('/api/users', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/institutions', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/dashboard/stats', { params }),
+        api.get('/dashboard/charts', { params }),
+        api.get('/institutions/stats/global'),
+        api.get('/dashboard/activities', { params }),
+        api.get('/dashboard/intelligent', { params }),
+        api.get('/users'),
+        api.get('/institutions')
       ]);
       
       setStats(statsRes.data);
@@ -92,8 +90,10 @@ const DashboardPage: React.FC = () => {
         brokers: (brokersRes.data || []).filter((u: any) => u.role === 'broker' || u.role === 'manager'),
         institutions: instsRes.data || []
       });
-    } catch (err) {
-      console.error('Erro ao procurar dados do dashboard');
+    } catch (err: any) {
+      const endpoint = err.config?.url || 'unknown';
+      const status = err.response?.status || 'no status';
+      console.error(`Erro ao procurar dados do dashboard no endpoint [${endpoint}] (Status: ${status}):`, err);
     } finally {
       setLoading(false);
     }

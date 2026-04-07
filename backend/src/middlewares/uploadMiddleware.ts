@@ -37,3 +37,10 @@ export const uploadMiddleware = multer({
   },
   fileFilter: fileFilter
 });
+
+export const registerUpload = uploadMiddleware.fields([
+  { name: 'idFront', maxCount: 1 },
+  { name: 'idBack', maxCount: 1 },
+  { name: 'addressProof', maxCount: 1 },
+  { name: 'profilePhoto', maxCount: 1 }
+]);

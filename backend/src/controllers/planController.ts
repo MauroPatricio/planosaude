@@ -17,6 +17,18 @@ export const getPlans = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getPlanById = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const plan = await HealthPlan.findOne({ _id: id, tenant: req.tenantId });
+    if (!plan) return res.status(404).json({ message: 'Plano não encontrado' });
+    res.json(plan);
+  } catch (error: any) {
+    logger.error(`Get Plan By Id Error: ${error.message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 export const getAllPlans = async (req: AuthRequest, res: Response) => {
   try {
     const plans = await HealthPlan.find({ tenant: req.tenantId }).sort({ createdAt: -1 });

@@ -43,3 +43,18 @@ export const authorize = (...roles: string[]) => {
     next();
   };
 };
+
+export const requireActiveStatus = (req: AuthRequest, res: Response, next: NextFunction) => {
+  // Always allow Admins and SuperAdmins to bypass status checks
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'superAdmin' || req.user.role === 'broker')) {
+    return next();
+  }
+
+  if (!req.user || req.user.status !== 'active') {
+    return res.status(403).json({
+      message: 'Conta não autorizada. Por favor, aguarde validação ou contacte o suporte.',
+      status: req.user?.status || 'pending'
+    });
+  }
+  next();
+};

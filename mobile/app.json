@@ -29,6 +29,18 @@
       "bundler": "metro"
     },
     "plugins": ["expo-router"],
-    "scheme": "planosaude360"
+    "scheme": "planosaude360",
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-heroicons",
+          "haversine",
+          "react-native-elements",
+          "socket.io-client",
+          "react-native-maps-directions"
+        ],
+        "listUnknownPackages": false
+      }
+    }
   }
 }

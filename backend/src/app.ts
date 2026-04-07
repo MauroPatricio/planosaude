@@ -21,8 +21,10 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import commissionRoutes from './routes/commissionRoutes.js';
 import claimRoutes from './routes/claimRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import planRequestRoutes from './routes/planRequestRoutes.js';
 import { getClientPaymentStatus } from './controllers/paymentController.js';
-import { protect, authorize } from './middlewares/authMiddleware.js';
+import { getPublicInstitutions } from './controllers/institutionController.js';
+import { protect, authorize, requireActiveStatus } from './middlewares/authMiddleware.js';
 import logger from './utils/logger.js';
 import path from 'path';
 
@@ -31,35 +33,43 @@ dotenv.config();
 const app: Express = express();
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 // Routes (Hybrid: Supports both /api and no-prefix for Nginx flexibility)
+// Register with /api and without
 const registerRoutes = (prefix: string) => {
   app.use(`${prefix}/auth`, authRoutes);
-  app.use(`${prefix}/clients`, clientRoutes);
-  app.use(`${prefix}/sales`, saleRoutes);
-  app.use(`${prefix}/dashboard`, dashboardRoutes);
-  app.use(`${prefix}/reports`, reportRoutes);
-  app.use(`${prefix}/users`, userRoutes);
+  app.use(`${prefix}/clients`, protect, requireActiveStatus, clientRoutes);
+  app.use(`${prefix}/sales`, protect, requireActiveStatus, saleRoutes);
+  app.use(`${prefix}/dashboard`, protect, requireActiveStatus, dashboardRoutes);
+  app.use(`${prefix}/reports`, protect, requireActiveStatus, reportRoutes);
+  app.use(`${prefix}/users`, protect, userRoutes); // user and profile routes need status check inside if they are self-editing
   app.use(`${prefix}/plans`, planRoutes);
   app.use(`${prefix}/leads`, leadRoutes);
   app.use(`${prefix}/institutions`, institutionRoutes);
-  app.use(`${prefix}/approvals`, approvalRoutes);
-  app.use(`${prefix}/members`, memberRoutes);
-  app.use(`${prefix}/subscriptions`, subscriptionRoutes);
-  app.use(`${prefix}/documents`, documentRoutes);
-  app.use(`${prefix}/payments`, paymentRoutes);
-  app.use(`${prefix}/notifications`, notificationRoutes);
-  app.use(`${prefix}/commissions`, commissionRoutes);
-  app.use(`${prefix}/claims`, claimRoutes);
+  app.use(`${prefix}/approvals`, protect, authorize('admin', 'superAdmin', 'broker'), approvalRoutes);
+  app.use(`${prefix}/members`, protect, requireActiveStatus, memberRoutes);
+  app.use(`${prefix}/subscriptions`, protect, requireActiveStatus, subscriptionRoutes);
+  app.use(`${prefix}/documents`, protect, requireActiveStatus, documentRoutes);
+  app.use(`${prefix}/payments`, protect, requireActiveStatus, paymentRoutes);
+  app.use(`${prefix}/notifications`, protect, notificationRoutes);
+  app.use(`${prefix}/commissions`, protect, requireActiveStatus, commissionRoutes);
+  app.use(`${prefix}/claims`, protect, requireActiveStatus, claimRoutes);
   app.use(`${prefix}/upload`, uploadRoutes);
+  app.use(`${prefix}/plan-requests`, planRequestRoutes);
+  app.get(`${prefix}/institutions-public`, getPublicInstitutions);
 };
 
-// Register with /api and without
 registerRoutes('/api');
 registerRoutes('');
 

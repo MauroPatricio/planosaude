@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Building2, Plus, Search, Filter, MoreVertical, 
   Mail, Phone, Shield, User, BarChart3, 
@@ -41,12 +41,10 @@ const InstitutionsPage: React.FC = () => {
 
   const fetchInstitutions = async () => {
     try {
-      const { data } = await axios.get('/api/institutions', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/institutions');
       setInstitutions(data);
     } catch (err) {
-      console.error('Erro ao procurar instituições');
+      console.error('Erro ao procurar instituições:', err);
     } finally {
       setLoading(false);
     }
@@ -59,14 +57,13 @@ const InstitutionsPage: React.FC = () => {
   const handleAddInstitution = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/api/institutions', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/institutions', formData);
       setShowAddModal(false);
       setFormData({ name: '', nuit: '', email: '', phone: '', responsible: '', address: '' });
       fetchInstitutions();
     } catch (err) {
       alert('Erro ao registar instituição');
+      console.error('Erro ao registar:', err);
     }
   };
 
@@ -74,13 +71,12 @@ const InstitutionsPage: React.FC = () => {
     if (!window.confirm(`Deseja liquidar todas as faturas pendentes da instituição ${name}?`)) return;
     
     try {
-      const { data } = await axios.post(`/api/institutions/${id}/pay-collective`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.post(`/institutions/${id}/pay-collective`);
       alert(data.message + `: ${data.updatedCount} faturas liquidadas.`);
       fetchInstitutions();
     } catch (err) {
       alert('Erro ao processar pagamento coletivo');
+      console.error('Erro no pagamento coletivo:', err);
     }
   };
 
@@ -94,12 +90,10 @@ const InstitutionsPage: React.FC = () => {
     setViewEmployeesInst(inst);
     setEmployeesLoading(true);
     try {
-      const { data } = await axios.get(`/api/payments/summary-b2b?institutionId=${inst._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get(`/payments/summary-b2b?institutionId=${inst._id}`);
       setEmployees(data);
     } catch (err) {
-      console.error('Erro ao procurar funcionários');
+      console.error('Erro ao procurar funcionários:', err);
     } finally {
       setEmployeesLoading(false);
     }

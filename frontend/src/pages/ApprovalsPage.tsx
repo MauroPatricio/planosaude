@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   ClipboardCheck, CheckCircle, XCircle, Clock, 
   User, Plus, Minus, Edit, FileText, Search, Calendar, Users
@@ -27,12 +27,10 @@ const ApprovalsPage: React.FC = () => {
 
   const fetchRequests = async () => {
     try {
-      const { data } = await axios.get('/api/approvals', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/approvals');
       setRequests(data);
     } catch (err) {
-      console.error('Erro ao procurar solicitações');
+      console.error('Erro ao procurar solicitações:', err);
     } finally {
       setLoading(false);
     }
@@ -47,12 +45,11 @@ const ApprovalsPage: React.FC = () => {
     if (comments === null) return;
 
     try {
-      await axios.put(`/api/approvals/${id}`, { status, comments }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/approvals/${id}`, { status, comments });
       fetchRequests();
     } catch (err) {
       alert('Erro ao processar solicitação');
+      console.error('Erro ao aprovar/rejeitar:', err);
     }
   };
 
