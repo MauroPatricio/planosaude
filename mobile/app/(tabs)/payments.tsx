@@ -19,6 +19,7 @@ import * as LucideIcons from 'lucide-react-native';
 const Icons = LucideIcons as any;
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/authStore';
+import { useSocket } from '../../src/context/SocketContext';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { API_URL } from '../../src/config';
@@ -27,6 +28,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function PaymentsScreen() {
   const { token, refreshUser } = useAuthStore();
+  const { socket } = useSocket();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -54,6 +56,19 @@ export default function PaymentsScreen() {
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('invoice:updated', (data) => {
+      console.log('Invoice updated event received:', data);
+      fetchData();
+    });
+
+    return () => {
+      socket.off('invoice:updated');
+    };
+  }, [socket]);
 
   const handleInvoicePress = (inv: any) => {
     if (inv.status === 'paid' || inv.status === 'pending') {

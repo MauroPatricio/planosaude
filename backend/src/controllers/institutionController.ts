@@ -2,6 +2,7 @@ import { type Request, type Response } from 'express';
 import Institution from '../models/Institution.js';
 import Client from '../models/Client.js';
 import Sale from '../models/Sale.js';
+import Tenant from '../models/Tenant.js';
 import logger from '../utils/logger.js';
 import mongoose from 'mongoose';
 
@@ -35,7 +36,7 @@ export const getInstitutions = async (req: AuthRequest, res: Response) => {
 export const getPublicInstitutions = async (req: Request, res: Response) => {
   try {
     // Return institutions for the main tenant for public registration
-    const defaultTenant = await mongoose.model('Tenant').findOne();
+    const defaultTenant = await Tenant.findOne();
     if (!defaultTenant) return res.json([]);
     
     const institutions = await Institution.find({ 

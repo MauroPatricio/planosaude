@@ -117,8 +117,7 @@ const LoginPage: React.FC = () => {
 
           <div className="mt-12 pt-8 border-t border-slate-800/50 text-center">
             <p className="text-slate-500 text-[11px] font-medium leading-relaxed tracking-wider uppercase mb-4">
-              Acesso exclusivo a corretores e seguradoras <br />
-              <span className="opacity-60 text-[10px]">© 2026 Nhiquela Servicos e Consultoria</span>
+              <span className="opacity-60 text-[10px]">© 2026 Nhiquela Serviços e Consultoria</span>
             </p>
             <div className="pt-4 border-t border-slate-800/20">
               <p className="text-slate-400 text-sm font-medium">

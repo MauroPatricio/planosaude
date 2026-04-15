@@ -15,6 +15,7 @@ export interface IUser extends Document {
   address?: string;
   documentType?: 'BI' | 'Passaporte';
   documentNumber?: string;
+  nuit?: string;
   planType?: 'particular' | 'institucional';
   comparePassword(password: string): Promise<boolean>;
 }
@@ -33,6 +34,7 @@ const UserSchema: Schema = new Schema({
   address: { type: String },
   documentType: { type: String, enum: ['BI', 'Passaporte'] },
   documentNumber: { type: String },
+  nuit: { type: String },
   planType: { type: String, enum: ['particular', 'institucional'] }
 }, {
   timestamps: true

@@ -218,7 +218,7 @@ const PaymentsPage: React.FC = () => {
               <tr className="bg-slate-900/50 border-b border-slate-700/50">
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Cliente & Plano</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor total</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Broker</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Vencimento</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Nº Apólice</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Ações</th>
@@ -271,9 +271,8 @@ const PaymentsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-slate-400 text-xs">
-                        <User className="w-3.5 h-3.5 text-slate-600" />
-                        {s.brokerName || 'Direto'}
+                      <div className="flex items-center gap-2 text-slate-300 text-xs font-bold">
+                        {new Date(s.dueDate).toLocaleDateString('pt-PT')}
                       </div>
                     </td>
                     <td className="px-6 py-4">

@@ -10,14 +10,30 @@ import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
 interface Sale {
   _id: string;
-  client: { name: string; email: string };
-  plan: { name: string; operator: string };
+  client: { 
+    name: string; 
+    email: string; 
+    phone: string; 
+    address: string; 
+    documentId: string; 
+    gender?: string;
+    birthDate?: string;
+  };
+  plan: { 
+    _id: string;
+    name: string; 
+    operator: string 
+  };
   broker: { name: string };
   value: number;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   paymentMethod: string;
   contractNumber?: string;
   policyNumber?: string;
+  beneficiaries: {
+    kind: 'Client' | 'Member';
+    person: any; // Populated Client or Member
+  }[];
   notes?: string;
   createdAt: string;
 }
@@ -64,16 +80,48 @@ const SalesPage: React.FC = () => {
   const [membersLoading, setMembersLoading] = useState(false);
 
   const handleExportExcel = () => {
-    const exportData = sales.map(s => ({
-      Data: new Date(s.createdAt).toLocaleDateString(),
-      Cliente: s.client?.name || 'N/A',
-      Plano: s.plan?.name || 'N/A',
-      Apolice: s.policyNumber || 'N/A',
-      Valor: s.value,
-      Metodo: s.paymentMethod,
-      Status: s.status
-    }));
-    exportToExcel(exportData, `Vendas_${new Date().toISOString().split('T')[0]}`);
+    const rows: any[] = [];
+
+    sales.forEach(s => {
+      const beneficiaries = s.beneficiaries && s.beneficiaries.length > 0 
+        ? s.beneficiaries 
+        : [{ kind: 'Client', person: s.client }];
+
+      beneficiaries.forEach(b => {
+        const person = b.person;
+        if (!person) return;
+
+        const isPrincipal = b.kind === 'Client';
+        
+        // Calculate dependent type
+        let depType = 'Membro principal';
+        if (!isPrincipal) {
+          const bday = person.birthDate || person.birthdate;
+          if (bday) {
+            const age = new Date().getFullYear() - new Date(bday).getFullYear();
+            depType = age >= 18 ? 'Dependente adulto' : 'Dependente menor';
+          } else {
+            depType = 'Dependente';
+          }
+        }
+
+        rows.push({
+          'Nome completo': person.name || 'N/A',
+          'Sexo': person.gender || 'N/A',
+          'Data de Nascimento': person.birthDate || person.birthdate ? new Date(person.birthDate || person.birthdate).toLocaleDateString() : 'N/A',
+          'Tipo de dependente': depType,
+          'Relação parentesco': isPrincipal ? 'Titular' : (person.relationship || 'N/A'),
+          'Plano ou Pacote': s.plan?.name || 'N/A',
+          'Nr de B.I': person.documentNumber || person.documentId || 'N/A',
+          'Contacto': isPrincipal ? (person.phone || 'N/A') : '',
+          'Nuit': isPrincipal ? (person.nuit || person.documentId || 'N/A') : '',
+          'E-mail': isPrincipal ? (person.email || 'N/A') : '',
+          'Endereço/residência': isPrincipal ? (person.address || 'N/A') : ''
+        });
+      });
+    });
+
+    exportToExcel(rows, `Vendas_Detalhadas_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleExportPDF = () => {
@@ -296,7 +344,6 @@ const SalesPage: React.FC = () => {
               <tr className="bg-slate-900/50 border-b border-slate-700/50">
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Cliente & Plano</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor total</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Broker</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Nº Apólice</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Ações</th>
@@ -305,7 +352,7 @@ const SalesPage: React.FC = () => {
             <tbody className="divide-y divide-slate-700/30">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                        <Clock className="w-5 h-5 animate-spin" />
                        Carregando vendas...
@@ -314,7 +361,7 @@ const SalesPage: React.FC = () => {
                 </tr>
               ) : filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     Nenhuma venda registada até ao momento.
                   </td>
                 </tr>
@@ -331,15 +378,9 @@ const SalesPage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-white font-bold">
                     <div className="text-white font-bold">{sale.value.toLocaleString()} MT</div>
                     <div className="text-[10px] text-slate-500 uppercase font-bold">{sale.paymentMethod.replace('_', ' ')}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-300">
-                      <User className="w-3 h-3 text-slate-500" />
-                      {sale.broker?.name || 'N/A'}
-                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-900/50 px-2 py-1 rounded border border-white/5">
@@ -436,7 +477,8 @@ const SalesPage: React.FC = () => {
                               .map(c => (
                                 <div 
                                   key={c._id}
-                                  onClick={() => {
+                                  onMouseDown={(e) => {
+                                    e.preventDefault(); // Prevent blur from firing before selection
                                     setFormData({...formData, client: c._id});
                                     setClientQuery(c.name);
                                     setShowClientDropdown(false);

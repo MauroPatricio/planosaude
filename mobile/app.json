@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PlanoSaude360",
-    "slug": "planosaude360",
+    "slug": "planosaude",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,7 +28,9 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "scheme": "planosaude360",
     "doctor": {
       "reactNativeDirectoryCheck": {
@@ -41,6 +43,13 @@
         ],
         "listUnknownPackages": false
       }
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8d6ed63e-8292-4b57-8e92-d7191c25344a"
+      }
+    },
+    "owner": "mpatricio"
   }
 }

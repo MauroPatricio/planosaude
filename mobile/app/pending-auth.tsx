@@ -102,7 +102,7 @@ export default function PendingAuthScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Precisa de ajuda urgente? Contate o suporte: </Text>
-          <Text style={styles.supportLink}>suporte@planosaude.co.mz</Text>
+          <Text style={styles.supportLink}>nhiquelaservicos@gmail.com</Text>
         </View>
       </View>
     </View>

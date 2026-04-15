@@ -39,10 +39,14 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalSales: 0,
+    todaySales: 0,
+    todaySalesCount: 0,
     totalClients: 0,
+    todayClients: 0,
     pendingCommissions: 0,
     salesProcessed: 0
   });
+  const [activities, setActivities] = useState<any[]>([]);
 
   const fetchStats = async (isRefreshing = false) => {
     try {
@@ -50,10 +54,13 @@ export default function DashboardScreen() {
       else setLoading(true);
       
       setError(null);
-      const { data } = await axios.get(`${API_URL}/dashboard/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(data);
+      const [statsRes, activitiesRes] = await Promise.all([
+        axios.get(`${API_URL}/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/dashboard/activities`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      setStats(statsRes.data);
+      setActivities(activitiesRes.data);
     } catch (err) {
       console.error('Erro ao procurar estatísticas');
       setError('Não foi possível carregar as estatísticas.');
@@ -109,17 +116,17 @@ export default function DashboardScreen() {
         ) : (
           <View style={styles.statsGrid}>
           <StatCard 
-            title="Vendas Totais" 
-            value={`${stats.totalSales.toLocaleString()} MT`} 
+            title="Vendas (Hoje)" 
+            value={`${stats.todaySales.toLocaleString()} MT`} 
             icon={Icons.TrendingUp} 
-            trend="+12%" 
+            trend={stats.todaySalesCount > 0 ? `+${stats.todaySalesCount}` : undefined} 
             color="#3B82F6" 
           />
           <StatCard 
-            title="Novos Clientes" 
-            value={stats.totalClients} 
+            title="Clientes (Hoje)" 
+            value={stats.todayClients} 
             icon={Icons.Users} 
-            trend="+3%" 
+            trend={stats.todayClients > 0 ? `+${stats.todayClients}` : undefined} 
             color="#8B5CF6" 
           />
           <StatCard 
@@ -129,10 +136,9 @@ export default function DashboardScreen() {
             color="#10B981" 
           />
           <StatCard 
-            title="Emitidas" 
-            value={stats.salesProcessed} 
+            title="Total Vendas" 
+            value={`${stats.totalSales.toLocaleString()} MT`} 
             icon={Icons.Briefcase} 
-            trend="+18%" 
             color="#F59E0B" 
           />
           </View>
@@ -147,27 +153,27 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.recentList}>
-          <TouchableOpacity style={styles.recentItem}>
-            <View style={[styles.itemIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-              <Icons.Search size={18} color="#3B82F6" />
+          {activities.length > 0 ? activities.map((activity) => (
+            <TouchableOpacity key={activity.id} style={styles.recentItem}>
+              <View style={[styles.itemIcon, { backgroundColor: activity.type === 'sale' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
+                {activity.type === 'sale' ? <Icons.TrendingUp size={18} color="#3B82F6" /> : <Icons.UserPlus size={18} color="#10B981" />}
+              </View>
+              <View style={styles.itemContent}>
+                <Text style={styles.itemName}>{activity.title}</Text>
+                <Text style={styles.itemDate}>
+                  {formatDistanceToNow(new Date(activity.timestamp))} • {activity.subtitle}
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                 <Text style={styles.valueText}>{activity.value}</Text>
+                 <Icons.ChevronRight size={14} color="#4B5563" />
+              </View>
+            </TouchableOpacity>
+          )) : (
+            <View style={styles.emptyActivity}>
+              <Text style={styles.emptyText}>Sem atividades recentes.</Text>
             </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemName}>Nova Proposta Emitida</Text>
-              <Text style={styles.itemDate}>Há 2 horas • Plano Plátino</Text>
-            </View>
-            <Icons.ChevronRight size={18} color="#4B5563" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.recentItem}>
-            <View style={[styles.itemIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Icons.Users size={18} color="#10B981" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemName}>Novo Lead Registado</Text>
-              <Text style={styles.itemDate}>Há 5 horas • Maria Silva</Text>
-            </View>
-            <Icons.ChevronRight size={18} color="#4B5563" />
-          </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -355,5 +361,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  valueText: {
+    color: '#3B82F6',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  emptyActivity: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#6B7280',
+    fontSize: 12,
   }
 });
+
+function formatDistanceToNow(date: Date) {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return 'Agora mesmo';
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `Há ${diffInMinutes} min`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `Há ${diffInHours} h`;
+  
+  return date.toLocaleDateString();
+}

@@ -97,7 +97,7 @@ export default function LoginScreen() {
             <Icons.Shield size={38} color="#60A5FA" />
           </LinearGradient>
           <Text style={styles.title}>PlanoSaude360</Text>
-          <Text style={styles.subtitle}>Gestão Inteligente de Corretagem</Text>
+          <Text style={styles.subtitle}>Gestão Inteligente de Planos de Saúde</Text>
         </View>
 
         {error ? (

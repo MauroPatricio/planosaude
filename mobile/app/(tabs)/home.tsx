@@ -9,7 +9,8 @@ import {
   RefreshControl,
   StatusBar,
   Platform,
-  Image
+  Image,
+  Alert
 } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
 const Icons = LucideIcons as any;
@@ -216,7 +217,20 @@ export default function HomeScreen() {
         </View>
 
         {/* Next Payment Card */}
-        <TouchableOpacity style={styles.paymentCard} activeOpacity={0.9}>
+        <TouchableOpacity 
+          style={styles.paymentCard} 
+          activeOpacity={0.9}
+          onPress={() => {
+            if (stats.nextPayment === 'N/A' || stats.nextPayment === 'Em dia') {
+              Alert.alert('Estado de Pagamento', 'Não existem faturas pendentes de momento.');
+            } else {
+              Alert.alert(
+                'Detalhes do Vencimento',
+                `A sua próxima mensalidade vence no dia ${stats.nextPayment}.\n\nPor favor, garanta o pagamento até esta data para evitar a suspensão dos serviços.`
+              );
+            }
+          }}
+        >
           <View style={styles.paymentInfo}>
             <View style={styles.paymentIconWrapper}>
               <Icons.CreditCard size={24} color="#F59E0B" />

@@ -47,6 +47,7 @@ const DashboardPage: React.FC = () => {
   const [stats, setStats] = React.useState({
     totalSales: 0,
     totalClients: 0,
+    totalInstitutions: 0,
     pendingCommissions: 0,
     salesProcessed: 0
   });
@@ -236,54 +237,42 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Stats Grid - Enhanced & Mobile Responsive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-10">
         <StatCard 
-          title="Receita Total" 
-          value={`${stats.totalSales.toLocaleString()} MT`} 
-          icon={TrendingUp} 
+          title="Total de Clientes" 
+          value={stats.totalClients || 0} 
+          icon={Users} 
           color="bg-primary-500" 
         />
         <StatCard 
-          title="Clientes Ativos" 
-          value={intelligentData?.kpis?.clients?.active || 0} 
-          icon={Users} 
-          color="bg-indigo-500" 
+          title="Total Instituições" 
+          value={stats.totalInstitutions || 0} 
+          icon={Shield} 
+          color="bg-indigo-400" 
         />
         <StatCard 
-          title="Novos (30d)" 
+          title="Total Novos Clientes" 
           value={intelligentData?.kpis?.clients?.new || 0} 
           icon={Plus} 
           color="bg-emerald-500" 
         />
         <StatCard 
-          title="Instituições" 
-          value={intelligentData?.kpis?.institutions?.active || 0} 
-          icon={Shield} 
+          title="Total de Vendas" 
+          value={`${stats.totalSales.toLocaleString()} MT`} 
+          icon={TrendingUp} 
+          color="bg-indigo-500" 
+        />
+        <StatCard 
+          title="Total Novas Vendas" 
+          value={`${(intelligentData?.kpis?.sales?.periodTotal || 0).toLocaleString()} MT`} 
+          icon={Zap} 
           color="bg-amber-500" 
         />
         <StatCard 
-          title="Pago" 
+          title="Total Pago" 
           value={`${(intelligentData?.kpis?.payments?.paid || 0).toLocaleString()} MT`} 
           icon={CheckCircle} 
           color="bg-emerald-400" 
-        />
-        <StatCard 
-          title="Em Atraso" 
-          value={`${(intelligentData?.kpis?.payments?.late || 0).toLocaleString()} MT`} 
-          icon={AlertTriangle} 
-          color="bg-rose-500" 
-        />
-        <StatCard 
-          title="Conversão" 
-          value={`${(intelligentData?.kpis?.conversion?.convRate || 0).toFixed(1)}%`} 
-          icon={Zap} 
-          color="bg-purple-500" 
-        />
-        <StatCard 
-          title="Retenção" 
-          value={`${(intelligentData?.kpis?.retention?.rate || 98.5).toFixed(1)}%`} 
-          icon={Activity} 
-          color="bg-teal-500" 
         />
       </div>
 

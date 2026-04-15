@@ -7,6 +7,7 @@ export interface IMember extends Document {
   relationship: 'pai' | 'mae' | 'filho' | 'irmao' | 'conjuge' | 'outro';
   documentId?: string;
   documentNumber?: string;
+  gender?: 'Masculino' | 'Feminino';
   phone?: string;
   status: 'pending' | 'active' | 'inactive';
   policyNumber?: string;
@@ -24,6 +25,7 @@ const MemberSchema: Schema = new Schema({
   },
   documentId: { type: String },
   documentNumber: { type: String },
+  gender: { type: String, enum: ['Masculino', 'Feminino'] },
   phone: { type: String },
   status: { type: String, enum: ['pending', 'active', 'inactive'], default: 'active' },
   policyNumber: { type: String },

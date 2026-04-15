@@ -59,6 +59,9 @@ export const getSales = async (req: any, res: Response) => {
     const sales = await Sale.find(query)
       .populate('client')
       .populate('plan')
+      .populate({
+        path: 'beneficiaries.person'
+      })
       .sort({ createdAt: -1 });
     res.json(sales);
   } catch (error: any) {

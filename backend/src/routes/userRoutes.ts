@@ -6,6 +6,8 @@ import { authorize } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
+router.get('/', protect, getUsers);
+
 // Register a push token for the current user
 router.post('/push-token', protect, async (req: any, res) => {
   const { token } = req.body;

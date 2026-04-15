@@ -4,46 +4,77 @@ import Sale from '../models/Sale.js';
 import Client from '../models/Client.js';
 import Invoice from '../models/Invoice.js';
 import Commission from '../models/Commission.js';
+import Institution from '../models/Institution.js';
+import Lead from '../models/Lead.js';
 import logger from '../utils/logger.js';
 
 export const getDashboardStats = async (req: any, res: Response) => {
   try {
     const tenantId = req.tenantId;
+    const { brokerId, institutionId } = req.query;
     const isBroker = req.user.role === 'broker';
 
-    // Base filters
-    const saleMatch: any = { tenant: tenantId, status: 'approved' };
-    const clientMatch: any = { tenant: tenantId };
-    const commissionMatch: any = { tenant: tenantId, status: 'pending' };
-
+    const tId = new mongoose.Types.ObjectId(tenantId);
+    
+    // Base filters (Lifetime)
+    const baseMatch: any = { tenant: tId };
+    
     if (isBroker) {
-      saleMatch.broker = req.user._id;
-      clientMatch.broker = req.user._id;
-      commissionMatch.broker = req.user._id;
+      baseMatch.broker = new mongoose.Types.ObjectId(req.user._id);
+    } else if (brokerId && brokerId !== '') {
+      baseMatch.broker = new mongoose.Types.ObjectId(brokerId);
     }
 
-    const totalSales = await Sale.aggregate([
-      { $match: saleMatch },
-      { $group: { _id: null, total: { $sum: '$value' } } }
-    ]);
+    if (institutionId && institutionId !== '') {
+      baseMatch.institution = new mongoose.Types.ObjectId(institutionId);
+    }
 
-    const totalClients = await Client.countDocuments(clientMatch);
+    const saleMatch: any = { ...baseMatch, status: 'approved' };
+    const clientMatch: any = { ...baseMatch };
+    const commissionMatch: any = { ...baseMatch, status: 'pending' };
     
-    const pendingCommissions = await Commission.aggregate([
-      { $match: commissionMatch },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
+    // Today's filter
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    
+    const todayMatch = { 
+      ...saleMatch, 
+      createdAt: { $gte: startOfToday, $lte: endOfToday } 
+    };
 
-    const salesProcessed = await Sale.countDocuments(saleMatch);
+    const [totalSales, todaySales, totalClients, todayClients, pendingCommissions, salesProcessed, totalInstitutions] = await Promise.all([
+      Sale.aggregate([
+        { $match: saleMatch },
+        { $group: { _id: null, total: { $sum: '$value' } } }
+      ]),
+      Sale.aggregate([
+        { $match: todayMatch },
+        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$value' } } }
+      ]),
+      Client.countDocuments(clientMatch),
+      Client.countDocuments({ ...clientMatch, createdAt: { $gte: startOfToday, $lte: endOfToday } }),
+      Commission.aggregate([
+        { $match: commissionMatch },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Sale.countDocuments(saleMatch),
+      Institution.countDocuments(baseMatch)
+    ]);
 
     res.json({
       totalSales: totalSales[0]?.total || 0,
+      todaySales: todaySales[0]?.total || 0,
+      todaySalesCount: todaySales[0]?.count || 0,
       totalClients,
+      todayClients,
       pendingCommissions: pendingCommissions[0]?.total || 0,
-      salesProcessed
+      salesProcessed,
+      totalInstitutions
     });
   } catch (error: any) {
-    logger.error(`Dashboard Stats Error: ${error}`);
+    logger.error(`Dashboard Stats Error: ${error.message}`);
     res.status(500).json({ message: 'Error fetching dashboard stats' });
   }
 };
@@ -53,6 +84,8 @@ export const getDashboardCharts = async (req: any, res: Response) => {
     const tenantId = req.tenantId;
     const isBroker = req.user.role === 'broker';
     
+    const tId = new mongoose.Types.ObjectId(tenantId);
+
     // Last 6 months range
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -60,13 +93,13 @@ export const getDashboardCharts = async (req: any, res: Response) => {
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
     const matchQuery: any = { 
-      tenant: tenantId, 
+      tenant: tId, 
       status: 'approved',
       createdAt: { $gte: sixMonthsAgo }
     };
 
     if (isBroker) {
-      matchQuery.broker = req.user._id;
+      matchQuery.broker = new mongoose.Types.ObjectId(req.user._id);
     }
 
     const chartsData = await Sale.aggregate([
@@ -95,7 +128,7 @@ export const getDashboardCharts = async (req: any, res: Response) => {
 
     res.json(formattedData);
   } catch (error: any) {
-    logger.error(`Dashboard Charts Error: ${error}`);
+    logger.error(`Dashboard Charts Error: ${error.message}`);
     res.status(500).json({ message: 'Error fetching dashboard charts' });
   }
 };
@@ -105,8 +138,10 @@ export const getDashboardActivities = async (req: any, res: Response) => {
     const tenantId = req.tenantId;
     const isBroker = req.user.role === 'broker';
 
-    const query: any = { tenant: tenantId };
-    if (isBroker) query.broker = req.user._id;
+    const tId = new mongoose.Types.ObjectId(tenantId);
+    const query: any = { tenant: tId };
+    
+    if (isBroker) query.broker = new mongoose.Types.ObjectId(req.user._id);
 
     // Fetch in parallel
     const [clients, sales] = await Promise.all([
@@ -152,11 +187,20 @@ export const getDashboardIntelligentData = async (req: any, res: Response) => {
     const { period = 'last30', institutionId, brokerId } = req.query;
     const isBroker = req.user.role === 'broker';
 
+    const tId = new mongoose.Types.ObjectId(tenantId);
+
     // Base filters
-    const baseMatch: any = { tenant: tenantId };
-    if (isBroker) baseMatch.broker = req.user._id;
-    else if (brokerId) baseMatch.broker = new mongoose.Types.ObjectId(brokerId);
-    if (institutionId) baseMatch.institution = new mongoose.Types.ObjectId(institutionId);
+    const baseMatch: any = { tenant: tId };
+    
+    if (isBroker) {
+      baseMatch.broker = new mongoose.Types.ObjectId(req.user._id);
+    } else if (brokerId && brokerId !== '') {
+      baseMatch.broker = new mongoose.Types.ObjectId(brokerId);
+    }
+    
+    if (institutionId && institutionId !== '') {
+      baseMatch.institution = new mongoose.Types.ObjectId(institutionId);
+    }
 
     // Period filter
     const now = new Date();
@@ -174,10 +218,11 @@ export const getDashboardIntelligentData = async (req: any, res: Response) => {
       clientStats,
       paymentStats,
       salesByBroker,
-      leadStats
+      leadStats,
+      periodSales
     ] = await Promise.all([
       // Institutions
-      mongoose.model('Institution').aggregate([
+      Institution.aggregate([
         { $match: { tenant: tenantId } },
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
@@ -224,9 +269,14 @@ export const getDashboardIntelligentData = async (req: any, res: Response) => {
         { $unwind: '$brokerDetails' }
       ]),
       // Conversion Funnel
-      mongoose.model('Lead').aggregate([
+      Lead.aggregate([
         { $match: baseMatch },
         { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      // Sales in Period
+      Sale.aggregate([
+        { $match: periodMatch },
+        { $group: { _id: null, total: { $sum: '$value' } } }
       ])
     ]);
 
@@ -278,6 +328,9 @@ export const getDashboardIntelligentData = async (req: any, res: Response) => {
         institutions: {
           total: instStats.reduce((acc: number, curr: any) => acc + curr.count, 0),
           active: instStats.find((i: any) => i._id === 'active')?.count || 0
+        },
+        sales: {
+          periodTotal: periodSales[0]?.total || 0
         },
         clients: {
           total: clientStats[0].total[0]?.count || 0,

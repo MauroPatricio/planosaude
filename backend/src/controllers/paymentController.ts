@@ -6,6 +6,7 @@ import logger from '../utils/logger.js';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { sendNotification } from './notificationController.js';
+import { getIO } from '../utils/socket.js';
 
 interface AuthRequest extends Request {
   user?: any;
@@ -88,6 +89,17 @@ export const submitPaymentProof = async (req: any, res: Response) => {
       });
     }
 
+    // Emit socket event to tenant room
+    try {
+      const io = getIO();
+      io.to(`tenant:${req.tenantId}`).emit('invoice:updated', { 
+        invoiceId: invoice._id, 
+        status: invoice.status 
+      });
+    } catch (socketError) {
+      logger.error(`Socket Emit Error (Submit Proof): ${socketError}`);
+    }
+
     res.json(invoice);
   } catch (error: any) {
     logger.error(`Submit Proof Error: ${error.message}`);
@@ -141,6 +153,17 @@ export const validatePayment = async (req: AuthRequest, res: Response) => {
           : `O estado da sua fatura ${invoice.invoiceNumber} foi atualizado para ${status}.`,
         link: '/portal'
       });
+    }
+
+    // Emit socket event to tenant room
+    try {
+      const io = getIO();
+      io.to(`tenant:${req.tenantId}`).emit('invoice:updated', { 
+        invoiceId: invoice._id, 
+        status: invoice.status 
+      });
+    } catch (socketError) {
+      logger.error(`Socket Emit Error (Validate Payment): ${socketError}`);
     }
 
     res.json(invoice);
@@ -331,6 +354,17 @@ export const simulateMpesaPayment = async (req: any, res: Response) => {
         message: `Recebido pagamento automático da fatura ${invoice.invoiceNumber}.`,
         link: '/payments'
       });
+    }
+
+    // Emit socket event to tenant room
+    try {
+      const io = getIO();
+      io.to(`tenant:${req.tenantId}`).emit('invoice:updated', { 
+        invoiceId: invoice._id, 
+        status: invoice.status 
+      });
+    } catch (socketError) {
+      logger.error(`Socket Emit Error (M-Pesa Simulation): ${socketError}`);
     }
 
     res.json({

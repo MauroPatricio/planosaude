@@ -18,6 +18,7 @@ interface PendingClient {
   address?: string;
   documentType?: string;
   documentNumber?: string;
+  nuit?: string;
   clientId?: {
     _id: string;
     phone: string;
@@ -278,6 +279,10 @@ const NewClientsPage: React.FC = () => {
                          <div>
                             <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">{selectedClient.documentType || 'Documento'}</p>
                             <p className="text-sm font-bold text-white uppercase">{selectedClient.documentNumber || 'N/A'}</p>
+                         </div>
+                         <div>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">NUIT</p>
+                            <p className="text-sm font-bold text-white uppercase">{selectedClient.nuit || 'N/A'}</p>
                          </div>
                       </div>
                     </div>

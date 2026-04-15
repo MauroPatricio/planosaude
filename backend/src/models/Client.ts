@@ -4,8 +4,11 @@ export interface IClient extends Document {
   name: string;
   email: string;
   phone: string;
-  documentId: string; // NUIT or BI
+  documentId: string; // BI
+  nuit?: string; // NUIT
   address: string;
+  gender?: 'Masculino' | 'Feminino';
+  birthDate?: Date;
   status: 'active' | 'inactive' | 'lead' | 'pending' | 'suspended' | 'pending_correction' | 'rejected';
   rejectionReason?: string;
   history: {
@@ -31,7 +34,10 @@ const ClientSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
   documentId: { type: String, required: true },
+  nuit: { type: String },
   address: { type: String },
+  gender: { type: String, enum: ['Masculino', 'Feminino'] },
+  birthDate: { type: Date },
   status: { type: String, enum: ['active', 'inactive', 'lead', 'pending', 'suspended', 'pending_correction', 'rejected'], default: 'lead' },
   rejectionReason: { type: String },
   history: [{

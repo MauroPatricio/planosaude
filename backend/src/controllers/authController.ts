@@ -153,7 +153,7 @@ export const registerClient = async (req: Request, res: Response) => {
   try {
     const { 
       name, email, password, phone, 
-      documentType = 'BI', documentNumber, address,
+      documentType = 'BI', documentNumber, nuit, address,
       planType, institutionId, tenantId 
     } = req.body;
 
@@ -205,6 +205,7 @@ export const registerClient = async (req: Request, res: Response) => {
       email,
       phone,
       documentId: documentNumber,
+      nuit,
       address,
       status: 'pending',
       planType,
@@ -230,6 +231,7 @@ export const registerClient = async (req: Request, res: Response) => {
       profileImage,
       documentType,
       documentNumber,
+      nuit,
       planType
     });
 

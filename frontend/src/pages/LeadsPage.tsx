@@ -104,6 +104,18 @@ const LeadsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteLead = async (id: string) => {
+    if (!window.confirm('Tem a certeza que deseja remover este lead definitivamente?')) return;
+    try {
+      await axios.delete(`/api/leads/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchLeads();
+    } catch (err) {
+      alert('Erro ao remover lead');
+    }
+  };
+
   const filteredLeads = leads.filter(l => 
     l.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     l.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -150,7 +162,10 @@ const LeadsPage: React.FC = () => {
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
-                  <button className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-400 transition-colors">
+                  <button 
+                    onClick={() => handleDeleteLead(lead._id)}
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-400 transition-colors"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>

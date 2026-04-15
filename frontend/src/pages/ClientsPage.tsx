@@ -13,11 +13,14 @@ interface Client {
   email: string;
   phone: string;
   documentId: string;
+  nuit?: string;
+  address: string;
   status: 'active' | 'inactive' | 'lead' | 'pending' | 'pending_correction' | 'rejected';
   institution?: { _id: string, name: string };
   billingCycle?: 'monthly' | 'quarterly' | 'annually';
   preferredPaymentDate?: string;
-  address?: string;
+  gender?: 'Masculino' | 'Feminino';
+  birthDate?: string;
   createdAt: string;
   hasActiveSubscription?: boolean;
   memberCount?: number;
@@ -38,6 +41,7 @@ interface Member {
   name: string;
   relationship: 'pai' | 'mae' | 'filho' | 'irmao' | 'conjuge' | 'outro';
   birthDate: string;
+  gender: 'Masculino' | 'Feminino';
   documentNumber?: string;
   phone?: string;
   status: 'active' | 'inactive' | 'pending';
@@ -57,7 +61,10 @@ const ClientsPage: React.FC = () => {
     email: '',
     phone: '',
     documentId: '',
+    nuit: '',
     address: '',
+    gender: 'Masculino',
+    birthDate: '',
     status: 'active',
     institution: '',
     billingCycle: 'monthly',
@@ -81,6 +88,7 @@ const ClientsPage: React.FC = () => {
     name: '',
     relationship: 'filho',
     birthDate: '',
+    gender: 'Masculino',
     documentNumber: '',
     phone: ''
   });
@@ -223,7 +231,7 @@ const ClientsPage: React.FC = () => {
       }
       setShowMemberModal(false);
       setEditingMember(null);
-      setMemberFormData({ name: '', relationship: 'filho', birthDate: '', documentNumber: '', phone: '' });
+      setMemberFormData({ name: '', relationship: 'filho', birthDate: '', gender: 'Masculino', documentNumber: '', phone: '' });
       fetchMembers(selectedProfileClient._id);
     } catch (err) {
       alert('Erro ao guardar membro');
@@ -261,7 +269,10 @@ const ClientsPage: React.FC = () => {
       email: client.email,
       phone: client.phone,
       documentId: client.documentId,
+      nuit: client.nuit || '',
       address: client.address || '',
+      gender: (client.gender as any) || 'Masculino',
+      birthDate: client.birthDate ? new Date(client.birthDate).toISOString().split('T')[0] : '',
       status: client.status,
       institution: client.institution?._id || '',
       billingCycle: client.billingCycle || 'monthly',
@@ -302,7 +313,7 @@ const ClientsPage: React.FC = () => {
       setShowEditModal(false);
       setEditingClient(null);
       setFormData({ 
-        name: '', email: '', phone: '', documentId: '', address: '', status: 'active', institution: '',
+        name: '', email: '', phone: '', documentId: '', nuit: '', address: '', gender: 'Masculino', birthDate: '', status: 'active', institution: '',
         billingCycle: 'monthly', preferredPaymentDate: new Date().toISOString().split('T')[0]
       });
       setIdFrontFile(null);
@@ -348,7 +359,7 @@ const ClientsPage: React.FC = () => {
       });
       setShowAddModal(false);
       setFormData({ 
-        name: '', email: '', phone: '', documentId: '', address: '', status: 'active', institution: '',
+        name: '', email: '', phone: '', documentId: '', nuit: '', address: '', gender: 'Masculino', birthDate: '', status: 'active', institution: '',
         billingCycle: 'monthly', preferredPaymentDate: new Date().toISOString().split('T')[0]
       });
       setIdFrontFile(null);
@@ -545,7 +556,7 @@ const ClientsPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                        <div className="text-sm font-bold text-primary-400 bg-primary-500/5 px-2 py-1 rounded border border-primary-500/10 w-fit">
-                          Dia {client.preferredPaymentDate ? new Date(client.preferredPaymentDate).getUTCDate() : '5'}
+                          {client.preferredPaymentDate ? new Date(client.preferredPaymentDate).toLocaleDateString('pt-PT') : '05/05/2024'}
                        </div>
                     </td>
                     <td className="px-6 py-4">
@@ -663,13 +674,48 @@ const ClientsPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">BI / NUIT</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Número do BI</label>
                   <input 
                     type="text" 
                     required
                     value={formData.documentId}
                     onChange={(e) => setFormData({...formData, documentId: e.target.value})}
                     className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    placeholder="Número do BI"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Número do NUIT</label>
+                  <input 
+                    type="text" 
+                    value={formData.nuit}
+                    onChange={(e) => setFormData({...formData, nuit: e.target.value})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    placeholder="Número do NUIT"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Sexo</label>
+                  <select 
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value as any})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  >
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Data de Nascimento</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 color-scheme-dark"
                   />
                 </div>
               </div>
@@ -847,8 +893,12 @@ const ClientsPage: React.FC = () => {
                        </h4>
                        <div className="bg-slate-900/50 p-5 rounded-2xl border border-white/5 space-y-4">
                           <div>
-                             <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Identificação / BI</p>
+                             <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Número do BI</p>
                              <p className="text-sm font-bold text-white tracking-widest">{selectedProfileClient.documentId}</p>
+                          </div>
+                          <div>
+                             <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Número do NUIT</p>
+                             <p className="text-sm font-bold text-white tracking-widest">{selectedProfileClient.nuit || 'N/A'}</p>
                           </div>
                           <div>
                              <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Email de Contacto</p>
@@ -861,6 +911,20 @@ const ClientsPage: React.FC = () => {
                           <div>
                              <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Localização / Morada</p>
                              <p className="text-sm font-bold text-white">{selectedProfileClient.address || 'Não especificada'}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                             <div>
+                                <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Género</p>
+                                <p className="text-sm font-bold text-white">{selectedProfileClient.gender || 'Não especificado'}</p>
+                             </div>
+                             <div>
+                                <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Data de Nascimento</p>
+                                <p className="text-sm font-bold text-white">
+                                   {selectedProfileClient.birthDate 
+                                      ? new Date(selectedProfileClient.birthDate).toLocaleDateString('pt-PT') 
+                                      : 'Não especificada'}
+                                </p>
+                             </div>
                           </div>
                        </div>
                     </div>
@@ -886,9 +950,9 @@ const ClientsPage: React.FC = () => {
                           </div>
                           <div>
                              <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Vencimento Programado</p>
-                             <p className="text-sm font-bold text-white">
-                                {selectedProfileClient.preferredPaymentDate ? `Dia ${new Date(selectedProfileClient.preferredPaymentDate).getDate()}` : 'Padrao (Dia 5)'}
-                             </p>
+                             <p className="text-sm font-bold text-white uppercase">
+                                 {selectedProfileClient.preferredPaymentDate ? new Date(selectedProfileClient.preferredPaymentDate).toLocaleDateString('pt-PT') : 'Padrão (05/05/2024)'}
+                              </p>
                           </div>
                           <div>
                              <p className="text-[10px] text-slate-600 font-bold uppercase mb-1">Instituição Relacionada (B2B)</p>
@@ -908,7 +972,7 @@ const ClientsPage: React.FC = () => {
                     <button 
                       onClick={() => {
                         setEditingMember(null);
-                        setMemberFormData({ name: '', relationship: 'filho', birthDate: '', documentNumber: '', phone: '' });
+                        setMemberFormData({ name: '', relationship: 'filho', birthDate: '', gender: 'Masculino', documentNumber: '', phone: '' });
                         setShowMemberModal(true);
                       }}
                       className="bg-primary-600/20 hover:bg-primary-600 px-3 py-1.5 rounded-lg text-primary-400 hover:text-white text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border border-primary-600/30"
@@ -948,6 +1012,7 @@ const ClientsPage: React.FC = () => {
                                      name: member.name,
                                      relationship: member.relationship,
                                      birthDate: new Date(member.birthDate).toISOString().split('T')[0],
+                                     gender: member.gender || 'Masculino',
                                      documentNumber: member.documentNumber || '',
                                      phone: member.phone || ''
                                    });
@@ -1100,6 +1165,52 @@ const ClientsPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
+                   <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Número do BI</label>
+                   <input 
+                     type="text" 
+                     required
+                     value={formData.documentId}
+                     onChange={(e) => setFormData({...formData, documentId: e.target.value})}
+                     className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                   />
+                </div>
+                <div className="space-y-1">
+                   <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Número do NUIT</label>
+                   <input 
+                     type="text" 
+                     value={formData.nuit}
+                     onChange={(e) => setFormData({...formData, nuit: e.target.value})}
+                     className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Sexo</label>
+                  <select 
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value as any})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  >
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Data de Nascimento</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 color-scheme-dark"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
                    <label className="text-xs font-semibold text-gray-400 uppercase ml-1 tracking-widest">Estado</label>
                     <select 
                       value={formData.status}
@@ -1110,6 +1221,30 @@ const ClientsPage: React.FC = () => {
                       <option value="inactive">Inativo</option>
                       <option value="lead">Lead / Potencial</option>
                     </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Sexo</label>
+                  <select 
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value as any})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  >
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Data de Nascimento</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                    className="w-full bg-gray-900/50 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 color-scheme-dark"
+                  />
                 </div>
               </div>
 
@@ -1289,6 +1424,17 @@ const ClientsPage: React.FC = () => {
                     onChange={(e) => setMemberFormData({...memberFormData, birthDate: e.target.value})}
                     className="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 transition-all color-scheme-dark"
                   />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Sexo</label>
+                  <select 
+                    value={memberFormData.gender}
+                    onChange={(e) => setMemberFormData({...memberFormData, gender: e.target.value as any})}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40 transition-all font-bold"
+                  >
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                  </select>
                 </div>
               </div>
 

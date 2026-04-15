@@ -13,8 +13,10 @@ import {
   ScrollView,
   Image,
   Alert,
-  Modal
+  Modal,
+  Pressable
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as LucideIcons from 'lucide-react-native';
 const Icons = LucideIcons as any;
 import { useRouter } from 'expo-router';
@@ -37,10 +39,13 @@ export default function RegisterClientScreen() {
     institutionId: '',
     documentType: 'BI', // 'BI' | 'Passaporte'
     documentNumber: '',
+    nuit: '',
     address: '',
     idFront: null as any,
     idBack: null as any,
     addressProof: null as any,
+    birthDate: '',
+    gender: 'Masculino',
     profilePhoto: null as any,
   });
 
@@ -53,6 +58,7 @@ export default function RegisterClientScreen() {
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -104,8 +110,8 @@ export default function RegisterClientScreen() {
 
   const handleNext = () => {
     if (step === 1) {
-      if (!formData.name || !formData.email || !formData.password || !formData.phone) {
-        setError('Preencha os campos obrigatórios.');
+      if (!formData.name || !formData.email || !formData.password || !formData.phone || !formData.birthDate) {
+        setError('Preencha os campos obrigatórios (incluindo Data Nasc.).');
         return;
       }
       if (formData.password !== formData.confirmPassword) {
@@ -125,8 +131,8 @@ export default function RegisterClientScreen() {
         address: formData.address,
         idFront: !!formData.idFront
       });
-      if (!formData.documentNumber) {
-        setError('Preencha o número do documento.');
+      if (!formData.documentNumber || !formData.nuit) {
+        setError('Preencha o número do documento e o NUIT.');
         return;
       }
       if (!formData.address) {
@@ -285,6 +291,49 @@ export default function RegisterClientScreen() {
                   placeholder="+258 8X XXX XXXX"
                   placeholderTextColor="#475569"
                 />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>DATA DE NASCIMENTO</Text>
+                <TouchableOpacity 
+                   style={styles.input} 
+                   onPress={() => setShowDatePicker(true)}
+                >
+                   <Text style={{ color: formData.birthDate ? '#fff' : '#475569' }}>
+                      {formData.birthDate || "Selecionar data..."}
+                   </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={formData.birthDate ? new Date(formData.birthDate) : new Date(2000, 0, 1)}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setFormData({...formData, birthDate: selectedDate.toISOString().split('T')[0]});
+                      }
+                    }}
+                  />
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>SEXO (GÉNERO)</Text>
+                <View style={styles.planOptions}>
+                  <TouchableOpacity 
+                     style={[styles.smallOptionCard, formData.gender === 'Masculino' && styles.planCardActive]}
+                     onPress={() => setFormData({...formData, gender: 'Masculino'})}
+                  >
+                    <Text style={[styles.planText, formData.gender === 'Masculino' && styles.planTextActive]}>Masculino</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                     style={[styles.smallOptionCard, formData.gender === 'Feminino' && styles.planCardActive]}
+                     onPress={() => setFormData({...formData, gender: 'Feminino'})}
+                  >
+                    <Text style={[styles.planText, formData.gender === 'Feminino' && styles.planTextActive]}>Feminino</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>PASSWORD</Text>
@@ -445,6 +494,18 @@ export default function RegisterClientScreen() {
               </View>
 
               <View style={styles.inputGroup}>
+                <Text style={styles.label}>NÚMERO DO NUIT</Text>
+                <TextInput 
+                   style={styles.input} 
+                   value={formData.nuit}
+                   onChangeText={(val: string) => setFormData({...formData, nuit: val})}
+                   placeholder="Número do NUIT (9 dígitos)"
+                   placeholderTextColor="#475569"
+                   keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>MORADA / ENDEREÇO</Text>
                 <TextInput 
                    style={styles.input} 
@@ -573,6 +634,16 @@ const styles = StyleSheet.create({
   mainBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   errorText: { color: '#F87171', fontSize: 12, marginBottom: 15, fontWeight: 'bold' },
   uploadText: { color: '#94a3b8', fontSize: 10, fontWeight: 'bold' },
+  smallOptionCard: { 
+    flex: 1, 
+    height: 50, 
+    backgroundColor: '#0f172a', 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    borderWidth: 1, 
+    borderColor: '#334155' 
+  },
   
   // Selectbox Styles
   selectboxTrigger: { 

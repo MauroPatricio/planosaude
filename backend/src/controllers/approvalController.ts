@@ -8,6 +8,7 @@ import { sendApprovalNotification } from '../utils/emailService.js';
 import logger from '../utils/logger.js';
 import { sendNotification } from './notificationController.js';
 import User from '../models/User.js';
+import Client from '../models/Client.js';
 
 interface AuthRequest extends Request {
   user?: any;
@@ -154,7 +155,7 @@ export const handleRequest = async (req: AuthRequest, res: Response) => {
 
     // Send Email notification
     if (approvalRequest.client) {
-      const clientPopulated: any = await mongoose.model('Client').findById(approvalRequest.client);
+      const clientPopulated: any = await Client.findById(approvalRequest.client);
       if (clientPopulated && clientPopulated.email) {
         await sendApprovalNotification(
            clientPopulated.email, 
